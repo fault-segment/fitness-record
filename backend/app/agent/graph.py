@@ -5,13 +5,12 @@ import operator
 from typing import Annotated, TypedDict
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 
 from app.agent.prompt import SYSTEM_PROMPT
 from app.agent.tools import ALL_TOOLS
-from app.config import settings
+from app.llm import get_llm
 
 
 class AgentState(TypedDict):
@@ -19,14 +18,7 @@ class AgentState(TypedDict):
     user_id: int
 
 
-llm = ChatOpenAI(
-    base_url=settings.llm_base_url,
-    api_key=settings.llm_api_key,
-    model=settings.llm_model,
-    temperature=0.3,
-)
-
-llm_with_tools = llm.bind_tools(ALL_TOOLS)
+llm_with_tools = get_llm().bind_tools(ALL_TOOLS)
 
 
 def agent_node(state: AgentState) -> dict:

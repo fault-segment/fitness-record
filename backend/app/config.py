@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-secret-change-me"
     jwt_algorithm: str = "HS256"
     jwt_expire_days: int = 30
+    llm_provider: str = "openai"  # "openai" or "anthropic"
     llm_base_url: str = "https://api.openai.com/v1"
     llm_api_key: str = ""
     llm_model: str = "gpt-4o"
