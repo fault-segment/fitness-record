@@ -1,0 +1,145 @@
+<h2>LangGraph ReAct Agent + RAG</h2>
+<p class="subtitle">Agent 自主推理-行动-观察循环</p>
+
+<div class="mockup">
+  <div class="mockup-header">ReAct Agent 运行循环</div>
+  <div class="mockup-body" style="font-size:14px;line-height:1.6;">
+    <pre style="background:#1a1a2e;color:#e0e0e0;padding:16px;border-radius:8px;overflow-x:auto;font-size:13px;">
+
+  <span style="color:#4fc3f7;">用户输入</span> "早上吃了一碗皮蛋瘦肉粥"
+
+       │
+       ▼
+┌─────────────────────────────────────────────┐
+│         <span style="color:#ce93d8;">LangGraph ReAct Agent</span>               │
+│                                              │
+│   ┌──────────────────────────────────┐       │
+│   │  <span style="color:#e57373;">Thought</span> (LLM推理)               │       │
+│   │  "用户要记录早餐，需要查皮蛋瘦肉粥  │       │
+│   │   的营养成分"                      │       │
+│   └──────────────┬───────────────────┘       │
+│                  │                           │
+│                  ▼                           │
+│   ┌──────────────────────────────────┐       │
+│   │  <span style="color:#81c784;">Action</span> (选择工具)              │       │
+│   │  → search_food("皮蛋瘦肉粥")      │       │
+│   └──────────────┬───────────────────┘       │
+│                  │                           │
+│                  ▼                           │
+│   ┌──────────────────────────────────┐       │
+│   │  <span style="color:#ffcc80;">Observation</span> (工具返回)         │       │
+│   │  { 皮蛋瘦肉粥: 150kcal/100g,      │       │
+│   │    protein: 6g, carbs: 18g, ... }│       │
+│   └──────────────┬───────────────────┘       │
+│                  │                           │
+│                  ▼                           │
+│   ┌──────────────────────────────────┐       │
+│   │  <span style="color:#e57373;">Thought</span>                         │       │
+│   │  "查到了。一碗约350g，需要确认    │       │
+│   │   量，然后保存。"                  │       │
+│   └──────────────┬───────────────────┘       │
+│                  │                           │
+│                  ▼                           │
+│   ┌──────────────────────────────────┐       │
+│   │  <span style="color:#81c784;">Action</span>                           │       │
+│   │  → present_confirmation_card(     │       │
+│   │      foods=[{粥, 350g, 525kcal}], │       │
+│   │      message="帮你算好了，确认？") │       │
+│   └──────────────────────────────────┘       │
+│                  │                           │
+│        (用户确认后继续保存)                    │
+│                                              │
+└─────────────────────────────────────────────┘
+    </pre>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Agent 工具集（Tools）</div>
+  <div class="mockup-body">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <tr style="background:#1a1a2e;color:#e0e0e0;">
+        <th style="padding:10px;text-align:left;">工具</th>
+        <th style="padding:10px;text-align:left;">功能</th>
+        <th style="padding:10px;text-align:left;">实现</th>
+      </tr>
+      <tr style="border-bottom:1px solid #333;">
+        <td style="padding:10px;color:#81c784;">search_food</td>
+        <td style="padding:10px;">RAG 召回食物营养成分</td>
+        <td style="padding:10px;">向量库 + Embedding</td>
+      </tr>
+      <tr style="border-bottom:1px solid #333;">
+        <td style="padding:10px;color:#81c784;">save_record</td>
+        <td style="padding:10px;">保存确认后的饮食记录</td>
+        <td style="padding:10px;">PostgreSQL 写入</td>
+      </tr>
+      <tr style="border-bottom:1px solid #333;">
+        <td style="padding:10px;color:#81c784;">get_daily_summary</td>
+        <td style="padding:10px;">查询某日摄入汇总</td>
+        <td style="padding:10px;">PostgreSQL 聚合查询</td>
+      </tr>
+      <tr style="border-bottom:1px solid #333;">
+        <td style="padding:10px;color:#81c784;">query_history</td>
+        <td style="padding:10px;">查询一段时间的记录</td>
+        <td style="padding:10px;">PostgreSQL 范围查询</td>
+      </tr>
+      <tr>
+        <td style="padding:10px;color:#e57373;">refuse</td>
+        <td style="padding:10px;">拒绝回答与饮食无关的问题</td>
+        <td style="padding:10px;">Agent 自身判断 + 拒绝</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">RAG 食物知识库</div>
+  <div class="mockup-body" style="font-size:14px;line-height:1.6;">
+    <pre style="background:#1a1a2e;color:#e0e0e0;padding:16px;border-radius:8px;overflow-x:auto;font-size:13px;">
+
+  数据来源                         向量化 & 存储
+
+  ┌──────────────┐              ┌──────────────────┐
+  │ 中国食物成分表 │──────┐       │ <span style="color:#ce93d8;">Vector Store</span>     │
+  │ (官方数据)    │      │       │ (PGVector / Milvus)│
+  └──────────────┘      │       │                   │
+                         ├──────►│  food_name: "皮蛋瘦肉粥"│
+  ┌──────────────┐      │       │  embedding: [0.12, ...] │
+  │ USDA 食物库   │──────┤       │  nutrition: {          │
+  │ (英文补充)    │      │       │    kcal: 150,          │
+  └──────────────┘      │       │    protein: 6,         │
+                         │       │    carbs: 18,          │
+  ┌──────────────┐      │       │    fat: 5              │
+  │ 常见菜品数据  │──────┘       │  }                    │
+  │ (人工整理)    │              └──────────────────┘
+  └──────────────┘
+
+  Agent 调用 search_food("皮蛋瘦肉粥")
+  → 向量检索 top-k 最相似食物
+  → 返回营养数据 + 相似度分数
+  → Agent 决定用哪个结果
+    </pre>
+  </div>
+</div>
+
+<div class="section">
+  <h3>与上一版的本质区别</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>ReAct Agent 的优势</h4>
+      <ul>
+        <li>Agent 自主决定调用哪个工具，不需要预设意图分类</li>
+        <li>可以多步推理：比如查了粥，发现用户还说"加了个蛋"，再查鸡蛋，合并计算</li>
+        <li>确认、修改、追问都在同一个推理循环中完成</li>
+        <li>LangGraph 提供状态管理和工具编排，比手动 if-else 健壮得多</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>代价</h4>
+      <ul>
+        <li>每个用户对话都是一个多步推理过程，延迟和成本高于单次 API 调用</li>
+        <li>需要管理对话状态 (checkpoint)，LangGraph 有内置支持</li>
+      </ul>
+    </div>
+  </div>
+</div>

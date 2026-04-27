@@ -1,0 +1,138 @@
+<h2>最终页面布局</h2>
+<p class="subtitle">紧凑摘要条 + 右侧日历入口 + 左侧抽屉</p>
+
+<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
+  <!-- 对话主页 -->
+  <div style="flex:1;min-width:220px;">
+    <div class="label" style="margin-bottom:8px;">对话主页</div>
+    <div class="mockup">
+      <div class="mockup-body" style="padding:0;background:#f5f5f5;min-height:520px;width:280px;margin:0 auto;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;">
+        <div style="background:#07c160;color:#fff;padding:12px 14px;font-size:14px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+          <span style="font-size:18px;">☰</span><span>饮食助手</span><span style="width:20px;"></span>
+        </div>
+
+        <!-- 紧凑摘要条 -->
+        <div style="background:#fff;margin:8px 10px;padding:10px 12px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 3px rgba(0,0,0,0.06);flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div>
+              <div style="font-size:10px;color:#999;">今日摄入</div>
+              <div style="font-size:18px;font-weight:bold;">1,847 <span style="font-size:10px;color:#999;font-weight:normal;">kcal</span></div>
+            </div>
+            <div style="display:flex;gap:8px;font-size:10px;">
+              <div style="text-align:center;"><span style="font-weight:bold;color:#e57373;">86</span><span style="color:#999;"> 蛋</span></div>
+              <div style="text-align:center;"><span style="font-weight:bold;color:#ff9800;">210</span><span style="color:#999;"> 碳</span></div>
+              <div style="text-align:center;"><span style="font-weight:bold;color:#42a5f5;">62</span><span style="color:#999;"> 脂</span></div>
+            </div>
+          </div>
+          <div style="font-size:22px;padding-left:8px;border-left:1px solid #eee;">📅</div>
+        </div>
+
+        <!-- 对话流 -->
+        <div style="padding:8px 10px;flex:1;">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+            <div style="background:#07c160;color:#fff;padding:8px 12px;border-radius:10px 10px 0 10px;max-width:85%;font-size:12px;">中午吃了一碗米饭，一份红烧肉，一碗紫菜汤</div>
+          </div>
+          <div style="display:flex;justify-content:flex-start;margin-bottom:8px;">
+            <div style="background:#fff;padding:10px 12px;border-radius:2px 12px 12px 12px;max-width:90%;font-size:12px;box-shadow:0 1px 2px rgba(0,0,0,0.06);">
+              <div style="margin-bottom:6px;">帮你整理好了：</div>
+              <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;"><span>🍚 米饭 ~200g</span><span style="color:#07c160;">232</span></div>
+              <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;"><span>🥩 红烧肉 ~150g</span><span style="color:#07c160;">370</span></div>
+              <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;"><span>🍲 紫菜汤 一碗</span><span style="color:#07c160;">45</span></div>
+              <div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px dashed #ddd;font-size:12px;"><span>合计</span><span style="color:#07c160;font-weight:bold;">647 kcal</span></div>
+              <div style="display:flex;gap:6px;margin-top:8px;">
+                <div style="flex:1;text-align:center;padding:7px;background:#07c160;color:#fff;border-radius:5px;font-size:11px;">确认</div>
+                <div style="flex:1;text-align:center;padding:7px;background:#f0f0f0;color:#666;border-radius:5px;font-size:11px;">修改</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 输入栏 -->
+        <div style="display:flex;align-items:center;padding:6px 10px;background:#fff;border-top:1px solid #eee;gap:6px;flex-shrink:0;">
+          <span style="font-size:20px;">🎤</span>
+          <div style="flex:1;background:#f5f5f5;border-radius:16px;padding:7px 12px;font-size:12px;color:#999;">说点什么...</div>
+          <span style="font-size:18px;">➕</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 抽屉菜单 -->
+  <div style="flex:1;min-width:220px;">
+    <div class="label" style="margin-bottom:8px;">左侧抽屉（☰）</div>
+    <div class="mockup">
+      <div class="mockup-body" style="padding:0;background:rgba(0,0,0,0.3);min-height:520px;width:280px;margin:0 auto;border-radius:8px;overflow:hidden;display:flex;">
+        <div style="background:#fff;width:200px;padding:0;display:flex;flex-direction:column;">
+          <div style="padding:24px 16px 16px;border-bottom:1px solid #f0f0f0;">
+            <div style="width:40px;height:40px;background:#07c160;border-radius:50%;margin-bottom:8px;display:flex;align-items:center;justify-content:center;color:#fff;">🍽</div>
+            <div style="font-size:14px;font-weight:bold;">饮食助手</div>
+          </div>
+          <div style="flex:1;padding:8px 0;">
+            <div style="padding:12px 16px;font-size:13px;color:#333;display:flex;align-items:center;gap:8px;">
+              <span>📊</span> 摄入统计
+            </div>
+            <div style="border-top:1px solid #f0f0f0;margin:6px 0;"></div>
+            <div style="padding:12px 16px;font-size:13px;color:#bbb;display:flex;align-items:center;gap:8px;">
+              <span>⚖️</span> 体重记录 <span style="font-size:9px;background:#eee;color:#999;padding:1px 5px;border-radius:3px;">后续</span>
+            </div>
+            <div style="padding:12px 16px;font-size:13px;color:#bbb;display:flex;align-items:center;gap:8px;">
+              <span>📋</span> 饮食方案 <span style="font-size:9px;background:#eee;color:#999;padding:1px 5px;border-radius:3px;">后续</span>
+            </div>
+          </div>
+          <div style="padding:12px 16px;border-top:1px solid #f0f0f0;font-size:12px;color:#999;">⚙️ 设置</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 日历详情页 -->
+  <div style="flex:1;min-width:220px;">
+    <div class="label" style="margin-bottom:8px;">点击 📅 → 日历详情页</div>
+    <div class="mockup">
+      <div class="mockup-body" style="padding:0;background:#f5f5f5;min-height:520px;width:280px;margin:0 auto;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;">
+        <div style="background:#07c160;color:#fff;padding:12px 14px;font-size:14px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+          <span>✕ 返回</span><span>饮食记录</span><span style="width:20px;"></span>
+        </div>
+        <div style="background:#fff;padding:8px 10px;border-bottom:1px solid #f0f0f0;flex-shrink:0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:12px;color:#999;">◀</span>
+            <span style="font-size:13px;font-weight:bold;">2026年 4月</span>
+            <span style="font-size:12px;color:#999;">▶</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:10px;color:#999;">
+            <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;">
+            <div style="padding:3px 0;color:#ccc;">29</div><div style="padding:3px 0;color:#ccc;">30</div><div style="padding:3px 0;color:#ccc;">31</div>
+            <div style="padding:3px 0;">1</div><div style="padding:3px 0;">2</div><div style="padding:3px 0;">3</div><div style="padding:3px 0;">4</div>
+            <div style="padding:3px 0;">5</div><div style="padding:3px 0;">6</div><div style="padding:3px 0;">7</div><div style="padding:3px 0;">8</div>
+            <div style="padding:3px 0;">9</div><div style="padding:3px 0;">10</div><div style="padding:3px 0;">11</div><div style="padding:3px 0;">12</div>
+            <div style="padding:3px 0;">13</div><div style="padding:3px 0;">14</div><div style="padding:3px 0;">15</div><div style="padding:3px 0;">16</div>
+            <div style="padding:3px 0;">17</div><div style="padding:3px 0;">18</div><div style="padding:3px 0;">19</div><div style="padding:3px 0;">20</div>
+            <div style="padding:3px 0;">21</div><div style="padding:3px 0;">22</div>
+            <div style="padding:3px 0;background:#07c160;color:#fff;border-radius:50%;">23</div>
+            <div style="padding:3px 0;border:2px solid #07c160;border-radius:50%;">24</div>
+          </div>
+        </div>
+        <div style="padding:10px;flex:1;overflow-y:auto;">
+          <div style="background:#fff;border-radius:8px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,0.06);">
+            <div style="font-size:12px;font-weight:bold;margin-bottom:8px;">4月24日</div>
+            <div style="text-align:center;margin-bottom:8px;font-size:28px;color:#07c160;font-weight:bold;">1,847 <span style="font-size:11px;color:#999;font-weight:normal;">kcal</span></div>
+            <div style="display:flex;gap:8px;margin-bottom:8px;font-size:11px;">
+              <div style="flex:1;text-align:center;"><span style="color:#e57373;font-weight:bold;">86g</span><br><span style="color:#999;">蛋白质</span></div>
+              <div style="flex:1;text-align:center;"><span style="color:#ff9800;font-weight:bold;">210g</span><br><span style="color:#999;">碳水</span></div>
+              <div style="flex:1;text-align:center;"><span style="color:#42a5f5;font-weight:bold;">62g</span><br><span style="color:#999;">脂肪</span></div>
+            </div>
+            <div style="border-top:1px solid #eee;padding-top:8px;">
+              <div style="font-size:10px;color:#999;margin-bottom:4px;">当日记录</div>
+              <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;"><span>早 皮蛋瘦肉粥+鸡蛋</span><span style="color:#07c160;">485</span></div>
+              <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;"><span>午 米饭+红烧肉+汤</span><span style="color:#07c160;">647</span></div>
+              <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;"><span>晚 鸡胸肉沙拉</span><span style="color:#07c160;">420</span></div>
+              <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;"><span>加 苹果</span><span style="color:#07c160;">95</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,95 @@
+<h2>小程序页面结构 & 核心流程</h2>
+<p class="subtitle">4 个 Tab 页面 + 核心记录流程</p>
+
+<div class="mockup">
+  <div class="mockup-header">1. 小程序 Tab 页面结构</div>
+  <div class="mockup-body" style="font-size:14px;line-height:1.6;">
+    <pre style="background:#1a1a2e;color:#e0e0e0;padding:16px;border-radius:8px;overflow-x:auto;font-size:13px;">
+┌───────────────────────────────────────────────┐
+│  <span style="color:#4fc3f7;">TabBar</span>                                                │
+│  ┌──────────┬──────────┬──────────┬──────────┐ │
+│  │ <span style="color:#ffcc80;">今日记录</span> │  <span style="color:#81c784;">添加</span>    │  <span style="color:#ce93d8;">日历</span>    │  <span style="color:#e57373;">对话</span>    │ │
+│  │ (首页)   │  (+)     │  (历史)  │  (AI)   │ │
+│  └──────────┴──────────┴──────────┴──────────┘ │
+└───────────────────────────────────────────────┘
+
+<span style="color:#ffcc80;">Tab 1 — 今日记录（首页）</span>
+  • 今日热量+营养素环形图
+  • 已记录的食物列表
+  • 默认展示"今天"
+
+<span style="color:#81c784;">Tab 2 — 添加（核心入口）</span>
+  • 语音输入 或 文字输入
+  • → 发送到后端解析 → 展示解析结果
+  • → 用户确认/编辑 → 保存
+  这是最主要的使用路径
+
+<span style="color:#ce93d8;">Tab 3 — 日历</span>
+  • 日历组件选择日期
+  • 展示选中日期的摄入汇总
+  • 点击某天查看当天食物列表
+
+<span style="color:#e57373;">Tab 4 — 对话</span>
+  • 独立的 LLM 聊天界面
+  • 自然语言提问（如"我这周蛋白质够吗？"）
+  • SSE 流式返回
+    </pre>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">2. 添加记录 — 核心数据流</div>
+  <div class="mockup-body" style="font-size:14px;line-height:1.6;">
+    <pre style="background:#1a1a2e;color:#e0e0e0;padding:16px;border-radius:8px;overflow-x:auto;font-size:13px;">
+
+<span style="color:#4fc3f7;">小程序端</span>                     <span style="color:#ce93d8;">FastAPI 后端</span>
+
+  用户输入文字/语音
+       │
+       ▼
+  POST /api/records/parse  ────────►  <span style="color:#81c784;">1. 查食物数据库</span>
+  { "text": "一碗米饭和红烧肉" }              │
+           │                       命中? ──Yes──► 返回数据库数据
+           │                          │
+           │                         No
+           │                          │
+           │                        <span style="color:#e57373;">2. LLM 估算</span>
+           │                       解析: 米饭150g=174kcal
+           │                       红烧肉200g=490kcal
+           │                          │
+           │                   <span style="color:#ffcc80;">3. 写缓存+返回</span>
+           │                          │
+       ◄──────────────────────────────┘
+  返回解析结果列表:
+  [
+    { name:"米饭", kcal:174, protein:3.5, carbs:39, fat:0.5 },
+    { name:"红烧肉", kcal:490, protein:15, carbs:8, fat:44 }
+  ]
+       │
+       ▼
+  用户确认页面
+  • 可以修改任意字段
+  • 可以删除某条
+  • 可以追加食物
+       │
+       ▼
+  POST /api/records  ──────────────► 存入 PostgreSQL
+  { date, meals: [...] }
+
+    </pre>
+  </div>
+</div>
+
+<div class="section">
+  <h3>数据流要点</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>关键分离</h4>
+      <ul>
+        <li><strong>解析和保存是两个 API</strong> — parse 只做文本→食物映射，不写库；保存是独立的写库操作</li>
+        <li><strong>语音在小程序端完成</strong> — 后端从来不知道音频长什么样</li>
+        <li><strong>对话走独立的对话 API</strong> — 和记录 CRUD 不耦合</li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,6 @@
+/** app.wxss — 全局样式 **/
+page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  font-size: 28rpx;
+  color: #333;
+}
