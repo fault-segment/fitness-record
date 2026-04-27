@@ -47,10 +47,7 @@ def tool_node(state: AgentState) -> dict:
         tool_fn = tool_map.get(tool_name)
         if tool_fn:
             try:
-                if asyncio.iscoroutinefunction(tool_fn.func):
-                    result = asyncio.run(tool_fn.ainvoke(tool_args))
-                else:
-                    result = tool_fn.invoke(tool_args)
+                result = asyncio.run(tool_fn.ainvoke(tool_args))
             except Exception as e:
                 result = f"工具调用失败: {e}"
         else:
@@ -83,14 +80,31 @@ graph = workflow.compile(checkpointer=memory)
 
 async def run_agent_stream(user_id: int, user_message: str):
     """流式运行 Agent，yield 每个 token。"""
+    from langchain_core.messages import AIMessage, AIMessageChunk
+
     config = {"configurable": {"thread_id": str(user_id)}}
     input_state = {
         "messages": [HumanMessage(content=user_message)],
         "user_id": user_id,
     }
-    async for event in graph.astream_events(input_state, config=config, version="v2"):
-        kind = event["event"]
-        if kind == "on_chat_model_stream":
-            chunk = event["data"]["chunk"]
-            if chunk.content:
-                yield chunk.content
+
+    def _extract_content(msg) -> str | None:
+        """从 AIMessage 或 AIMessageChunk 中提取文本内容"""
+        content = msg.content
+        if not content:
+            return None
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = []
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    parts.append(block["text"])
+            return "".join(parts) if parts else None
+        return None
+
+    async for msg, metadata in graph.astream(input_state, config=config, stream_mode="messages"):
+        if isinstance(msg, (AIMessage, AIMessageChunk)):
+            text = _extract_content(msg)
+            if text:
+                yield text
