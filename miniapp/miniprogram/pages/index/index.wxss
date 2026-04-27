@@ -53,8 +53,9 @@
   border-radius: 4rpx 20rpx 20rpx 20rpx;
 }
 
-/* 确认卡片 */
-.confirm-card {
+/* 确认卡片 + 汇总卡片 */
+.confirm-card,
+.summary-card {
   background: #fff;
   border-radius: 16rpx;
   padding: 24rpx;
@@ -103,6 +104,18 @@
   color: #07c160;
   font-weight: bold;
   font-size: 30rpx;
+}
+
+.card-macros {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.card-divider {
+  height: 1rpx;
+  background: #eee;
+  margin: 16rpx 0;
 }
 
 .card-actions {

@@ -15,7 +15,7 @@
         </view>
 
         <!-- 确认卡片 -->
-        <view wx:elif="{{item.type === 'confirm'}}" class="card confirm-card">
+        <view wx:elif="{{item.type === 'card'}}" class="card confirm-card">
           <view class="card-title">帮你整理好了，确认一下：</view>
           <view wx:for="{{item.foods}}" wx:for-item="food" wx:key="name" class="card-row">
             <text class="card-food">{{food.name}} <text class="card-amount">~{{food.amount}}</text></text>
@@ -23,11 +23,31 @@
           </view>
           <view class="card-total">
             <text>合计</text>
-            <text class="card-total-kcal">647 kcal</text>
+            <text class="card-total-kcal">{{item.totals.kcal}} kcal</text>
+          </view>
+          <view class="card-macros" wx:if="{{item.totals.protein}}">
+            <text>蛋白质 {{item.totals.protein}}g | 碳水 {{item.totals.carbs}}g | 脂肪 {{item.totals.fat}}g</text>
           </view>
           <view class="card-actions">
             <view class="btn-confirm" data-index="{{index}}" bindtap="onConfirm">确认</view>
             <view class="btn-edit" data-index="{{index}}" bindtap="onEditCard">修改</view>
+          </view>
+        </view>
+
+        <!-- 汇总卡片 -->
+        <view wx:elif="{{item.type === 'summary'}}" class="card summary-card">
+          <view class="card-title">{{item.content}}</view>
+          <view class="card-total">
+            <text>热量</text>
+            <text class="card-total-kcal">{{item.totals.kcal}} kcal</text>
+          </view>
+          <view class="card-macros" wx:if="{{item.totals.protein}}">
+            <text>蛋白质 {{item.totals.protein}}g | 碳水 {{item.totals.carbs}}g | 脂肪 {{item.totals.fat}}g</text>
+          </view>
+          <view wx:if="{{item.foods.length > 0}}" class="card-divider"></view>
+          <view wx:for="{{item.foods}}" wx:for-item="food" wx:key="name" class="card-row">
+            <text class="card-food">{{food.name}} <text class="card-amount">~{{food.amount}}</text></text>
+            <text class="card-kcal">{{food.kcal}} kcal</text>
           </view>
         </view>
 

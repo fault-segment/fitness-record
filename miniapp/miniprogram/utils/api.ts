@@ -100,13 +100,60 @@ export function doLogin(): Promise<void> {
   return loginPromise
 }
 
-export function chat(message: string): Promise<{ reply: string }> {
-  return request('/api/chat', { data: { message } })
+// ---- SSE 消息类型 ----
+
+export interface SSEText {
+  type: 'text'
+  content: string
 }
+
+export interface SSEFood {
+  name: string
+  amount: string
+  kcal: number
+  protein?: number
+  carbs?: number
+  fat?: number
+}
+
+export interface SSETotals {
+  kcal: number
+  protein: number
+  carbs: number
+  fat: number
+}
+
+export interface SSECard {
+  type: 'card'
+  card_type: 'confirm'
+  foods: SSEFood[]
+  totals: SSETotals
+}
+
+export interface SSESummary {
+  type: 'summary'
+  title: string
+  date: string
+  foods: SSEFood[]
+  totals: SSETotals
+}
+
+export interface SSERefuse {
+  type: 'refuse'
+  content: string
+}
+
+export interface SSEDone {
+  type: 'done'
+}
+
+export type SSEMessage = SSEText | SSECard | SSESummary | SSERefuse | SSEDone
+
+// ---- SSE 流式对话 ----
 
 export function chatStream(
   message: string,
-  onToken: (token: string) => void,
+  onMessage: (msg: SSEMessage) => void,
   onDone: () => void,
   onError: (err: any) => void,
 ): void {
@@ -126,16 +173,23 @@ export function chatStream(
     fail: onError,
   })
 
-  // WeChat Mini Program chunked response
+  let buffer = ''
   task.onChunkReceived((res: any) => {
     const text = new TextDecoder().decode(res.data)
-    // Parse SSE data lines
-    const lines = text.split('\n')
+    buffer += text
+    const lines = buffer.split('\n')
+    // 最后一行可能不完整，保留在 buffer
+    buffer = lines.pop() || ''
+
     for (const line of lines) {
       if (line.startsWith('data: ')) {
-        const data = line.slice(6)
-        if (data && data !== '[DONE]') {
-          onToken(data)
+        const data = line.slice(6).trim()
+        if (!data) continue
+        try {
+          const msg = JSON.parse(data) as SSEMessage
+          onMessage(msg)
+        } catch {
+          // 非 JSON 数据（如 ping），忽略
         }
       }
     }
