@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +11,11 @@ from app.routers import auth, chat, speech
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    # Seed food DB if empty
+    if not os.path.exists("data/food_chromadb"):
+        from app.rag.data import FOOD_DATA
+        from app.rag.store import init_food_db
+        init_food_db(FOOD_DATA)
     yield
 
 
