@@ -1,8 +1,11 @@
 # backend/app/rag/store.py
 from __future__ import annotations
 
+import os
 import chromadb
 from sentence_transformers import SentenceTransformer
+
+from app.config import settings
 
 COLLECTION_NAME = "food_nutrition"
 
@@ -12,7 +15,8 @@ _embedder: SentenceTransformer | None = None
 def _get_embedder() -> SentenceTransformer:
     global _embedder
     if _embedder is None:
-        _embedder = SentenceTransformer("BAAI/bge-small-zh-v1.5")
+        model_path = settings.bge_model_path or "BAAI/bge-small-zh-v1.5"
+        _embedder = SentenceTransformer(model_path, local_files_only=bool(settings.bge_model_path))
     return _embedder
 
 
