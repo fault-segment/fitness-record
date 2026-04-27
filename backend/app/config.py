@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     database_url: str = "mysql+asyncmy://root:@127.0.0.1:4000/diet_recorder"
+    tidb_ca_path: str = ""  # TiDB Cloud CA 证书路径，留空则跳过 ssl_verify
     wechat_appid: str = ""
     wechat_secret: str = ""
     jwt_secret: str = "dev-secret-change-me"

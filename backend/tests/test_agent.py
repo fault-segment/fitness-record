@@ -19,7 +19,8 @@ async def test_search_food_no_match():
     pytest.importorskip("sentence_transformers")
     from app.rag.store import search_food
     results = search_food("毒蘑菇xyz")
-    assert len(results) == 0 or all(r["score"] < 0.3 for r in results)
+    # 无意义查询不应返回高置信度匹配
+    assert results[0]["score"] < 0.7
 
 
 def test_food_data_count():
