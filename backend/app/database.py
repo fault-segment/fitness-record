@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
+from app.models import User, FoodRecord, FoodItem  # noqa: F401  # ensure models loaded
 
 engine = create_async_engine(settings.database_url, echo=False, pool_size=5, max_overflow=10)
 
