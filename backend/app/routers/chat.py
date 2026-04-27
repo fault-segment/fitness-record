@@ -1,17 +1,22 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sse_starlette.sse import EventSourceResponse
 
-from app.agent.tools import run_agent
+from app.agent import run_agent_stream
 from app.middleware import get_user_id
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
 
+async def event_stream(user_id: int, message: str):
+    """SSE 事件流生成器"""
+    async for token in run_agent_stream(user_id, message):
+        yield {"data": token}
+
+
 @router.post("/chat")
 async def chat(body: dict[str, str], user_id: int = Depends(get_user_id)):
-    """对话接口 — 占位，后续接入 LangGraph Agent"""
+    """对话接口 — SSE 流式返回 Agent 响应"""
     message = body.get("message", "")
-    # 占位：直接返回 echo
-    return {
-        "reply": f"[Agent 占位] 收到你的消息: {message}。LangGraph Agent 待接入。",
-        "message": message,
-    }
+    if not message.strip():
+        return {"reply": "请说点什么吧～"}
+    return EventSourceResponse(event_stream(user_id, message))
