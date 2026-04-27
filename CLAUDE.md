@@ -102,6 +102,12 @@ User text → POST /api/chat (SSE) → LangGraph ReAct Agent
 
 49 common Chinese foods stored as embeddings in `data/food_chromadb/`. The `SentenceTransformer("BAAI/bge-small-zh-v1.5")` model downloads on first use (~100MB, ~300MB RAM). Documents encode food name + nutrition facts + description. Query uses cosine similarity.
 
+**Proxy note:** HuggingFace 下载模型需要代理，本地代理 `http://127.0.0.1:7890`。启动前设置：
+```bash
+export HTTP_PROXY=http://127.0.0.1:7890
+export HTTPS_PROXY=http://127.0.0.1:7890
+```
+
 ## Key Constraints
 
 - **Multi-tenant**: Every DB query must filter by `user_id`. The `get_user_id` FastAPI dependency enforces this at the HTTP layer.
