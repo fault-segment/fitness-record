@@ -79,7 +79,11 @@ graph = workflow.compile(checkpointer=memory)
 
 
 async def run_agent_stream(user_id: int, user_message: str):
-    """流式运行 Agent，yield 每个 token。"""
+    """流式运行 Agent，yield JSON 结构化消息。
+
+    消息类型: text, card, summary, refuse, done
+    """
+    import json
     from langchain_core.messages import AIMessage, AIMessageChunk
 
     config = {"configurable": {"thread_id": str(user_id)}}
@@ -88,7 +92,7 @@ async def run_agent_stream(user_id: int, user_message: str):
         "user_id": user_id,
     }
 
-    def _extract_content(msg) -> str | None:
+    def _extract_text(msg) -> str | None:
         """从 AIMessage 或 AIMessageChunk 中提取文本内容"""
         content = msg.content
         if not content:
@@ -103,8 +107,42 @@ async def run_agent_stream(user_id: int, user_message: str):
             return "".join(parts) if parts else None
         return None
 
+    def _emit(event_type: str, **kwargs) -> str:
+        """构建 SSE JSON 行"""
+        msg = {"type": event_type, **kwargs}
+        return json.dumps(msg, ensure_ascii=False)
+
     async for msg, metadata in graph.astream(input_state, config=config, stream_mode="messages"):
         if isinstance(msg, (AIMessage, AIMessageChunk)):
-            text = _extract_content(msg)
+            # 检查 tool_calls，识别结构化消息
+            tool_calls = getattr(msg, "tool_calls", None)
+            if tool_calls:
+                for tc in tool_calls:
+                    tc_name = tc.get("name", "")
+                    tc_args = tc.get("args", {})
+
+                    if tc_name == "show_confirm_card":
+                        try:
+                            foods = json.loads(tc_args.get("foods_json", "[]"))
+                            totals = json.loads(tc_args.get("totals_json", "{}"))
+                            yield _emit("card", card_type="confirm",
+                                        foods=foods, totals=totals)
+                        except (json.JSONDecodeError, KeyError):
+                            pass
+
+                    elif tc_name == "refuse":
+                        yield _emit("refuse",
+                                    content="抱歉，我只能帮你记录饮食和回答食物相关的问题哦～")
+
+                    elif tc_name == "get_daily_summary":
+                        yield _emit("summary",
+                                    title=f"📅 {tc_args.get('date_str', '')} 摄入汇总",
+                                    date=tc_args.get("date_str", ""),
+                                    foods=[], totals={})
+
+            # 文本内容
+            text = _extract_text(msg)
             if text:
-                yield text
+                yield _emit("text", content=text)
+
+    yield _emit("done")

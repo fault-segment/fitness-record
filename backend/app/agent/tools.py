@@ -127,9 +127,16 @@ async def query_history(user_id: int, start_date: str, end_date: str) -> str:
 
 
 @tool
-async def refuse() -> str:
-    """拒绝回答与饮食无关的话题。"""
+async def show_confirm_card(foods_json: str, totals_json: str) -> str:
+    """展示饮食确认卡片。foods_json 是 JSON 数组 [{"name":"米饭","amount":"200g","kcal":232},...]，totals_json 是 {"kcal":600,"protein":24,"carbs":56,"fat":38}。
+    调用此工具后，前端会展示可交互的确认卡片，用户点击确认后才调用 save_record 保存。"""
+    return f"已展示确认卡片"
+
+
+@tool
+async def refuse(reason: str = "") -> str:
+    """拒绝回答与饮食无关的话题。reason 是简短拒绝原因。"""
     return "抱歉，我只能帮你记录饮食和回答食物相关的问题哦～"
 
 
-ALL_TOOLS = [search_food, save_record, get_daily_summary, query_history, refuse]
+ALL_TOOLS = [search_food, save_record, get_daily_summary, query_history, show_confirm_card, refuse]
