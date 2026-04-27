@@ -1,5 +1,5 @@
 // index.ts
-import { chat as chatApi } from '../../utils/api'
+import { chat as chatApi, chatStream } from '../../utils/api'
 
 interface IMsg {
   role: 'user' | 'agent'
@@ -57,12 +57,34 @@ Page({
     this.setData({ inputValue: '' })
     this.addMsg('user', 'text', text)
 
-    // 调后端
-    chatApi(text).then(res => {
-      this.addMsg('agent', 'text', res.reply)
-    }).catch(() => {
-      this.addMsg('agent', 'text', '网络出了点问题，请稍后再试～')
-    })
+    // Stream agent response
+    let fullReply = ''
+    const msgIdx = this.data.messages.length  // index of agent msg to update
+    this.addMsg('agent', 'text', '思考中...')
+
+    chatStream(
+      text,
+      (token: string) => {
+        fullReply += token
+        // Update last message in-place
+        const msgs = [...this.data.messages]
+        msgs[msgIdx] = { role: 'agent', type: 'text', content: fullReply }
+        this.setData({ messages: msgs }, () => {
+          this.setData({ scrollTop: 99999 })
+        })
+      },
+      () => {
+        // Done — finalize
+        const msgs = [...this.data.messages]
+        msgs[msgIdx] = { role: 'agent', type: 'text', content: fullReply }
+        this.setData({ messages: msgs })
+      },
+      () => {
+        const msgs = [...this.data.messages]
+        msgs[msgIdx] = { role: 'agent', type: 'text', content: '网络出了点问题，请稍后再试～' }
+        this.setData({ messages: msgs })
+      },
+    )
   },
 
   startVoice() {

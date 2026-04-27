@@ -103,3 +103,41 @@ export function doLogin(): Promise<void> {
 export function chat(message: string): Promise<{ reply: string }> {
   return request('/api/chat', { data: { message } })
 }
+
+export function chatStream(
+  message: string,
+  onToken: (token: string) => void,
+  onDone: () => void,
+  onError: (err: any) => void,
+): void {
+  const token = getToken()
+  const header: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (token) header['Authorization'] = `Bearer ${token}`
+
+  const task = wx.request({
+    url: `${BASE_URL}/api/chat`,
+    method: 'POST',
+    header,
+    data: { message },
+    enableChunked: true,
+    success: () => onDone(),
+    fail: onError,
+  })
+
+  // WeChat Mini Program chunked response
+  task.onChunkReceived((res: any) => {
+    const text = new TextDecoder().decode(res.data)
+    // Parse SSE data lines
+    const lines = text.split('\n')
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6)
+        if (data && data !== '[DONE]') {
+          onToken(data)
+        }
+      }
+    }
+  })
+}
