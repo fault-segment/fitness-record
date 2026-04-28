@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langgraph.graph import END, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 
-from app.agent.prompt import SYSTEM_PROMPT
+from app.agent.prompt import get_system_prompt
 from app.agent.tools import ALL_TOOLS
 from app.llm import get_llm
 
@@ -26,7 +26,7 @@ def agent_node(state: AgentState) -> dict:
     messages = state["messages"]
     # 确保 system prompt 在最前面
     if not messages or not isinstance(messages[0], SystemMessage):
-        messages = [SystemMessage(content=SYSTEM_PROMPT)] + list(messages)
+        messages = [SystemMessage(content=get_system_prompt())] + list(messages)
     resp = llm_with_tools.invoke(messages)
     return {"messages": [resp]}
 
