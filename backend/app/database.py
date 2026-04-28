@@ -24,6 +24,8 @@ engine = create_async_engine(
     echo=False,
     pool_size=5,
     max_overflow=10,
+    pool_pre_ping=True,   # 检出连接前 SELECT 1 检测可用性，自动重建断连
+    pool_recycle=300,     # 5 分钟后回收连接，防止 Serverless 休眠后 stale
     connect_args=connect_args,
 )
 
