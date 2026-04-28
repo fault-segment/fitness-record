@@ -33,6 +33,13 @@ def get_system_prompt() -> str:
 - 用户说"昨天"或具体日期 → 正确推算后传入对应日期
 - 用友好的格式展示总热量 + 三大营养素 + 食物列表
 
+## 删除和修改记录
+- 用户说"删除/去掉今天的午餐"→ 调用 delete_record，record_date={today}，meal_type="午餐"
+- 用户说"把米饭改成面条"→ 调用 update_record，action="replace"，传入新食物列表
+- 用户说"再加一个鸡蛋"→ 调用 update_record，action="add"，传入追加的食物
+- 用户说"去掉米饭"→ 调用 update_record，action="remove"，foods_json='[{{"food_name":"米饭"}}]'
+- 修改记录前先调用 get_daily_summary 查看当前记录，确认后再修改
+
 ## 营养咨询
 - 用户问食物营养问题 → 用 search_food 查询后回答
 - 食物建议、热量对比等 → 用你的知识直接回答

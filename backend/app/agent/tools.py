@@ -134,9 +134,117 @@ async def show_confirm_card(foods_json: str, totals_json: str) -> str:
 
 
 @tool
+async def delete_record(user_id: int, record_date: str, meal_type: str = "") -> str:
+    """删除指定日期和餐次的饮食记录。record_date 格式 YYYY-MM-DD，meal_type 为空则删除当天全部记录。"""
+    async with async_session() as session:
+        stmt = select(FoodRecord).where(
+            FoodRecord.user_id == user_id,
+            FoodRecord.record_date == record_date,
+        )
+        if meal_type:
+            stmt = stmt.where(FoodRecord.meal_type == meal_type)
+
+        result = await session.execute(stmt)
+        records = result.scalars().all()
+
+        if not records:
+            target = f"{record_date} {meal_type}" if meal_type else record_date
+            return f"{target} 没有找到饮食记录"
+
+        count = 0
+        for rec in records:
+            count += 1
+            await session.delete(rec)
+        await session.commit()
+
+        target = f"{record_date} {meal_type}" if meal_type else record_date
+        return f"已删除 {target} 的 {count} 条饮食记录"
+
+
+@tool
+async def update_record(
+    user_id: int,
+    record_date: str,
+    meal_type: str = "",
+    action: str = "replace",
+    foods_json: str = "[]",
+) -> str:
+    """修改指定日期和餐次的饮食记录。
+    action 为 "replace" 则替换全部食物，"add" 追加食物，"remove" 删除指定食物。
+    foods_json 为 JSON 数组 [{"food_name":"米饭","amount_g":200,"kcal":232},...]。
+    """
+    items_data = json.loads(foods_json)
+
+    async with async_session() as session:
+        stmt = select(FoodRecord).where(
+            FoodRecord.user_id == user_id,
+            FoodRecord.record_date == record_date,
+        )
+        if meal_type:
+            stmt = stmt.where(FoodRecord.meal_type == meal_type)
+
+        result = await session.execute(stmt)
+        records = result.scalars().all()
+
+        if not records:
+            target = f"{record_date} {meal_type}" if meal_type else record_date
+            return f"{target} 没有找到饮食记录"
+
+        if action == "replace":
+            # 删除旧的食物项，替换为新项
+            for rec in records:
+                await session.refresh(rec, ["items"])
+                for item in rec.items:
+                    await session.delete(item)
+                for f in items_data:
+                    item = FoodItem(
+                        record_id=rec.id,
+                        food_name=f["food_name"],
+                        amount_g=Decimal(str(f.get("amount_g", 100))),
+                        unit=f.get("unit", "g"),
+                        kcal=int(f["kcal"]),
+                        protein_g=Decimal(str(f.get("protein_g", 0))),
+                        carbs_g=Decimal(str(f.get("carbs_g", 0))),
+                        fat_g=Decimal(str(f.get("fat_g", 0))),
+                        source=f.get("source", "llm"),
+                    )
+                    session.add(item)
+
+        elif action == "add":
+            for rec in records:
+                for f in items_data:
+                    item = FoodItem(
+                        record_id=rec.id,
+                        food_name=f["food_name"],
+                        amount_g=Decimal(str(f.get("amount_g", 100))),
+                        unit=f.get("unit", "g"),
+                        kcal=int(f["kcal"]),
+                        protein_g=Decimal(str(f.get("protein_g", 0))),
+                        carbs_g=Decimal(str(f.get("carbs_g", 0))),
+                        fat_g=Decimal(str(f.get("fat_g", 0))),
+                        source=f.get("source", "llm"),
+                    )
+                    session.add(item)
+
+        elif action == "remove":
+            remove_names = {f["food_name"] for f in items_data}
+            for rec in records:
+                await session.refresh(rec, ["items"])
+                for item in rec.items:
+                    if item.food_name in remove_names:
+                        await session.delete(item)
+
+        await session.commit()
+
+        target = f"{record_date} {meal_type}" if meal_type else record_date
+        return f"已更新 {target} 的饮食记录（{action} {len(items_data)} 种食物）"
+
+
+@tool
 async def refuse(reason: str = "") -> str:
     """拒绝回答与饮食无关的话题。reason 是简短拒绝原因。"""
     return "抱歉，我只能帮你记录饮食和回答食物相关的问题哦～"
 
 
-ALL_TOOLS = [search_food, save_record, get_daily_summary, query_history, show_confirm_card, refuse]
+ALL_TOOLS = [search_food, save_record, get_daily_summary, query_history,
+             show_confirm_card, delete_record, update_record, refuse]
