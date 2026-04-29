@@ -61,7 +61,7 @@ async def save_record(user_id: int, record_date: str, meal_type: str, foods: str
 
 @tool
 async def get_daily_summary(user_id: int, date_str: str) -> str:
-    """查询某日饮食汇总。date_str 格式: YYYY-MM-DD。"""
+    """查询某日饮食汇总。date_str 格式: YYYY-MM-DD。返回结构化 JSON 供前端渲染汇总卡片。"""
     async with async_session() as session:
         result = await session.execute(
             select(FoodRecord).where(
@@ -72,7 +72,13 @@ async def get_daily_summary(user_id: int, date_str: str) -> str:
         records = result.scalars().all()
 
         if not records:
-            return f"{date_str} 还没有饮食记录"
+            return json.dumps({
+                "_summary": True,
+                "title": f"{date_str} 还没有饮食记录",
+                "date": date_str,
+                "foods": [],
+                "totals": {},
+            }, ensure_ascii=False)
 
         all_items: list[FoodItem] = []
         for rec in records:
@@ -84,8 +90,19 @@ async def get_daily_summary(user_id: int, date_str: str) -> str:
         total_carbs = sum(float(i.carbs_g) for i in all_items)
         total_fat = sum(float(i.fat_g) for i in all_items)
 
+        foods_list = [
+            {"name": item.food_name, "amount": f"{item.amount_g}g", "kcal": item.kcal}
+            for item in all_items
+        ]
+        totals = {
+            "kcal": total_kcal,
+            "protein": round(total_protein),
+            "carbs": round(total_carbs),
+            "fat": round(total_fat),
+        }
+
         lines = [
-            f"📅 {date_str} 摄入汇总",
+            f"{date_str} 摄入汇总",
             f"热量: {total_kcal} kcal",
             f"蛋白质: {total_protein:.0f}g | 碳水: {total_carbs:.0f}g | 脂肪: {total_fat:.0f}g",
             "",
@@ -93,7 +110,15 @@ async def get_daily_summary(user_id: int, date_str: str) -> str:
         ]
         for item in all_items:
             lines.append(f"- {item.food_name} | {item.amount_g}g | {item.kcal}kcal")
-        return "\n".join(lines)
+
+        return json.dumps({
+            "_summary": True,
+            "title": f"{date_str} 摄入汇总",
+            "date": date_str,
+            "foods": foods_list,
+            "totals": totals,
+            "text": "\n".join(lines),
+        }, ensure_ascii=False)
 
 
 @tool
@@ -161,83 +186,142 @@ async def delete_record(user_id: int, record_date: str, meal_type: str = "") -> 
         return f"已删除 {target} 的 {count} 条饮食记录"
 
 
+def _make_food_item(record_id: int, f: dict) -> FoodItem:
+    return FoodItem(
+        record_id=record_id,
+        food_name=f["food_name"],
+        amount_g=Decimal(str(f.get("amount_g", 100))),
+        unit=f.get("unit", "g"),
+        kcal=int(f["kcal"]),
+        protein_g=Decimal(str(f.get("protein_g", 0))),
+        carbs_g=Decimal(str(f.get("carbs_g", 0))),
+        fat_g=Decimal(str(f.get("fat_g", 0))),
+        source=f.get("source", "llm"),
+    )
+
+
+async def _get_records(session: AsyncSession, user_id: int, record_date: str, meal_type: str) -> list[FoodRecord]:
+    stmt = select(FoodRecord).where(
+        FoodRecord.user_id == user_id,
+        FoodRecord.record_date == record_date,
+    )
+    if meal_type:
+        stmt = stmt.where(FoodRecord.meal_type == meal_type)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+def _target(record_date: str, meal_type: str) -> str:
+    return f"{record_date} {meal_type}" if meal_type else record_date
+
+
 @tool
-async def update_record(
-    user_id: int,
-    record_date: str,
-    meal_type: str = "",
-    action: str = "replace",
-    foods_json: str = "[]",
-) -> str:
-    """修改指定日期和餐次的饮食记录。
-    action 为 "replace" 则替换全部食物，"add" 追加食物，"remove" 删除指定食物。
-    foods_json 为 JSON 数组 [{"food_name":"米饭","amount_g":200,"kcal":232},...]。
-    """
+async def replace_record(user_id: int, record_date: str, meal_type: str, foods_json: str) -> str:
+    """全量替换指定日期和餐次的所有食物。foods_json 为 JSON 数组 [{"food_name":"米饭","amount_g":200,"kcal":232},...]。"""
     items_data = json.loads(foods_json)
 
     async with async_session() as session:
-        stmt = select(FoodRecord).where(
-            FoodRecord.user_id == user_id,
-            FoodRecord.record_date == record_date,
-        )
-        if meal_type:
-            stmt = stmt.where(FoodRecord.meal_type == meal_type)
-
-        result = await session.execute(stmt)
-        records = result.scalars().all()
-
+        records = await _get_records(session, user_id, record_date, meal_type)
         if not records:
-            target = f"{record_date} {meal_type}" if meal_type else record_date
-            return f"{target} 没有找到饮食记录"
+            return f"{_target(record_date, meal_type)} 没有找到饮食记录"
 
-        if action == "replace":
-            # 删除旧的食物项，替换为新项
-            for rec in records:
-                await session.refresh(rec, ["items"])
-                for item in rec.items:
-                    await session.delete(item)
-                for f in items_data:
-                    item = FoodItem(
-                        record_id=rec.id,
-                        food_name=f["food_name"],
-                        amount_g=Decimal(str(f.get("amount_g", 100))),
-                        unit=f.get("unit", "g"),
-                        kcal=int(f["kcal"]),
-                        protein_g=Decimal(str(f.get("protein_g", 0))),
-                        carbs_g=Decimal(str(f.get("carbs_g", 0))),
-                        fat_g=Decimal(str(f.get("fat_g", 0))),
-                        source=f.get("source", "llm"),
-                    )
-                    session.add(item)
-
-        elif action == "add":
-            for rec in records:
-                for f in items_data:
-                    item = FoodItem(
-                        record_id=rec.id,
-                        food_name=f["food_name"],
-                        amount_g=Decimal(str(f.get("amount_g", 100))),
-                        unit=f.get("unit", "g"),
-                        kcal=int(f["kcal"]),
-                        protein_g=Decimal(str(f.get("protein_g", 0))),
-                        carbs_g=Decimal(str(f.get("carbs_g", 0))),
-                        fat_g=Decimal(str(f.get("fat_g", 0))),
-                        source=f.get("source", "llm"),
-                    )
-                    session.add(item)
-
-        elif action == "remove":
-            remove_names = {f["food_name"] for f in items_data}
-            for rec in records:
-                await session.refresh(rec, ["items"])
-                for item in rec.items:
-                    if item.food_name in remove_names:
-                        await session.delete(item)
+        for rec in records:
+            await session.refresh(rec, ["items"])
+            for item in rec.items:
+                await session.delete(item)
+            for f in items_data:
+                session.add(_make_food_item(rec.id, f))
 
         await session.commit()
+        return f"已替换 {_target(record_date, meal_type)} 的 {len(items_data)} 种食物"
 
-        target = f"{record_date} {meal_type}" if meal_type else record_date
-        return f"已更新 {target} 的饮食记录（{action} {len(items_data)} 种食物）"
+
+@tool
+async def add_food(user_id: int, record_date: str, meal_type: str, foods_json: str) -> str:
+    """往已有餐次追加食物。foods_json 为 JSON 数组 [{"food_name":"鸡蛋","amount_g":60,"kcal":86},...]。"""
+    items_data = json.loads(foods_json)
+
+    async with async_session() as session:
+        records = await _get_records(session, user_id, record_date, meal_type)
+        if not records:
+            return f"{_target(record_date, meal_type)} 没有找到饮食记录，请先调用 save_record"
+
+        for rec in records:
+            for f in items_data:
+                session.add(_make_food_item(rec.id, f))
+
+        await session.commit()
+        return f"已追加 {len(items_data)} 种食物到 {_target(record_date, meal_type)}"
+
+
+@tool
+async def remove_food(user_id: int, record_date: str, meal_type: str, foods_json: str) -> str:
+    """从已有餐次移除指定食物。foods_json 为 JSON 数组 [{"food_name":"米饭"},{"food_name":"鸡蛋"}]，只需填 food_name。"""
+    items_data = json.loads(foods_json)
+    remove_names = {f["food_name"] for f in items_data}
+
+    async with async_session() as session:
+        records = await _get_records(session, user_id, record_date, meal_type)
+        if not records:
+            return f"{_target(record_date, meal_type)} 没有找到饮食记录"
+
+        removed = 0
+        for rec in records:
+            await session.refresh(rec, ["items"])
+            for item in rec.items:
+                if item.food_name in remove_names:
+                    await session.delete(item)
+                    removed += 1
+
+        await session.commit()
+        return f"已从 {_target(record_date, meal_type)} 移除 {removed} 种食物"
+
+
+@tool
+async def update_food(
+    user_id: int,
+    record_date: str,
+    meal_type: str,
+    old_food_name: str,
+    new_food_name: str = "",
+    amount_g: int = 0,
+    kcal: int = 0,
+    protein_g: float = 0,
+    carbs_g: float = 0,
+    fat_g: float = 0,
+) -> str:
+    """修改已有餐次中某个食物的名称、分量或营养值。只需传入要修改的字段，未传入的字段保持不变。
+    示例: "把200g米饭改成300g" → update_food(old_food_name="米饭", amount_g=300)
+    "把米饭改成面条" → update_food(old_food_name="米饭", new_food_name="面条")
+    """
+    async with async_session() as session:
+        records = await _get_records(session, user_id, record_date, meal_type)
+        if not records:
+            return f"{_target(record_date, meal_type)} 没有找到饮食记录"
+
+        updated = 0
+        for rec in records:
+            await session.refresh(rec, ["items"])
+            for item in rec.items:
+                if item.food_name == old_food_name:
+                    if new_food_name:
+                        item.food_name = new_food_name
+                    if amount_g > 0:
+                        item.amount_g = Decimal(amount_g)
+                    if kcal > 0:
+                        item.kcal = kcal
+                    if protein_g > 0:
+                        item.protein_g = Decimal(str(protein_g))
+                    if carbs_g > 0:
+                        item.carbs_g = Decimal(str(carbs_g))
+                    if fat_g > 0:
+                        item.fat_g = Decimal(str(fat_g))
+                    updated += 1
+
+        if updated == 0:
+            return f"未找到食物「{old_food_name}」"
+        await session.commit()
+        return f"已更新 {_target(record_date, meal_type)} 的「{old_food_name}」"
 
 
 @tool
@@ -247,4 +331,5 @@ async def refuse(reason: str = "") -> str:
 
 
 ALL_TOOLS = [search_food, save_record, get_daily_summary, query_history,
-             show_confirm_card, delete_record, update_record, refuse]
+             show_confirm_card, delete_record, replace_record,
+             add_food, remove_food, update_food, refuse]

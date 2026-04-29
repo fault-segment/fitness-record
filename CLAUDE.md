@@ -21,8 +21,8 @@ backend/                        FastAPI backend
   app/models/record.py           FoodRecord + FoodItem models (one-to-many)
   app/routers/auth.py           POST /api/auth/login — wx.login code → JWT
   app/routers/chat.py           POST /api/chat — SSE streaming with JSON typed messages
-  app/routers/speech.py         POST /api/speech-to-text — ASR placeholder
-  app/agent/tools.py            6 Agent tools (search_food, save_record, show_confirm_card, ...)
+  app/routers/speech.py         POST /api/speech-to-text — Whisper base 模型，启动时预加载
+  app/agent/tools.py            11 Agent tools (search, CRUD, confirm, query, refuse)
   app/agent/graph.py            LangGraph ReAct graph + run_agent_stream() JSON SSE
   app/agent/prompt.py           Chinese system prompt for the diet assistant
   app/rag/                      Chroma vector store + BGE-small-zh-v1.5 (local)
@@ -49,11 +49,13 @@ docs/
 
 ## Commands
 
+> **Python 环境**：项目使用 Python 3.10，venv 位于 `backend/.venv/`。所有 Python 命令需通过 `.venv/bin/python` 运行。
+
 ```bash
 # Backend setup
 cd backend
 cp .env.example .env   # then fill in TIDB_*, WECHAT_SECRET, LLM_*, BGE_MODEL_PATH
-pip install -r requirements.txt
+.venv/bin/pip install -r requirements.txt
 
 # Copy BGE model to local path (avoids HuggingFace download)
 mkdir -p data/bge-small-zh-v1.5
@@ -63,15 +65,15 @@ mkdir -p data/bge-small-zh-v1.5
 uvicorn app.main:app --reload
 
 # Seed the RAG food knowledge base (also runs on first startup)
-python -m app.rag.seed
+.venv/bin/python -m app.rag.seed
 
 # Run tests
-python -m pytest tests/ -v
+.venv/bin/python -m pytest tests/ -v
 
 # Test API manually
 curl http://localhost:8000/api/health
 # Generate JWT for testing:
-python -c "from app.middleware import create_token; print(create_token(1))"
+.venv/bin/python -c "from app.middleware import create_token; print(create_token(1))"
 # Test chat SSE:
 curl -s -N -X POST http://localhost:8000/api/chat \
   -H "Content-Type: application/json" \
@@ -93,17 +95,22 @@ User text → POST /api/chat (SSE) → LangGraph ReAct Agent
   └─ loops back to agent_node until LLM produces a text response
         → SSE stream: JSON typed messages → miniapp renders by type
 
-SSE message types: text, card (confirm), summary, refuse, done
+SSE message types: text, card (confirm), summary, refuse, status, done（6 种）
 See docs/api-protocol.md for full spec.
 ```
 
-### Agent Tools (6)
+### Agent Tools (11)
 
 | Tool | Purpose |
 |------|---------|
 | `search_food` | Query Chroma for food nutrition data (BGE-small embedding → cosine similarity) |
 | `show_confirm_card` | Emit structured confirmation card (foods + totals) for user approval |
-| `save_record` | Write confirmed food items to TiDB Cloud (FoodRecord + FoodItems) |
+| `save_record` | Create new meal record with food items (FoodRecord + FoodItems) |
+| `delete_record` | Delete entire meal/day records |
+| `replace_record` | Replace all foods in a meal (full swap) |
+| `add_food` | Append foods to an existing meal record |
+| `remove_food` | Remove specific foods from a meal record |
+| `update_food` | Modify a single food item's name/amount/nutrition |
 | `get_daily_summary` | Aggregate one day's intake (total kcal + macros + food list) |
 | `query_history` | Date-range summary |
 | `refuse` | Politely reject non-diet topics |
@@ -162,4 +169,5 @@ All required, see `.env.example`:
 | `JWT_SECRET` / `JWT_ALGORITHM` / `JWT_EXPIRE_DAYS` | JWT signing config |
 | `LLM_PROVIDER` | `"openai"` or `"anthropic"` |
 | `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | LLM endpoint (Anthropic protocol for MiniMax) |
+| `WHISPER_MODEL` | Whisper 模型大小：`tiny` / `base` / `small` / `medium`，默认 `base`（~139MB） |
 | `BGE_MODEL_PATH` | Local BGE model path, e.g. `data/bge-small-zh-v1.5` (empty = HF download) |

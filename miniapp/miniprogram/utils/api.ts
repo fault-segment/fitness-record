@@ -1,7 +1,16 @@
 // utils/api.ts
 import { getToken, setToken, setUserId, clearAuth } from './storage'
 
-const BASE_URL = 'http://localhost:8000'  // TODO: 替换为正式域名
+// 开发环境自动适配地址：模拟器用 localhost，真机预览用局域网 IP
+function getBaseUrl(): string {
+  const sys = wx.getSystemInfoSync()
+  if (sys.platform === 'devtools') {
+    return 'http://localhost:8000'
+  }
+  // 真机走局域网 IP（手机和电脑需连同一 WiFi）
+  return 'http://192.168.31.52:8000'
+}
+const BASE_URL = getBaseUrl()
 
 interface RequestOptions {
   auth?: boolean
@@ -147,7 +156,12 @@ export interface SSEDone {
   type: 'done'
 }
 
-export type SSEMessage = SSEText | SSECard | SSESummary | SSERefuse | SSEDone
+export interface SSEStatus {
+  type: 'status'
+  content: string
+}
+
+export type SSEMessage = SSEText | SSECard | SSESummary | SSERefuse | SSEDone | SSEStatus
 
 // ---- SSE 流式对话 ----
 
@@ -156,7 +170,7 @@ export function chatStream(
   onMessage: (msg: SSEMessage) => void,
   onDone: () => void,
   onError: (err: any) => void,
-): void {
+): { abort: () => void } {
   const token = getToken()
   const header: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -173,13 +187,49 @@ export function chatStream(
     fail: onError,
   })
 
-  let buffer = ''
+  let textBuffer = ''
+  let leftover: number[] = []
+
   task.onChunkReceived((res: any) => {
-    const text = new TextDecoder().decode(res.data)
-    buffer += text
-    const lines = buffer.split('\n')
-    // 最后一行可能不完整，保留在 buffer
-    buffer = lines.pop() || ''
+    // 将上一轮残留的字节拼到当前 chunk 前面，处理跨 chunk 截断
+    const raw = new Uint8Array(leftover.length + res.data.byteLength)
+    raw.set(new Uint8Array(leftover), 0)
+    raw.set(new Uint8Array(res.data), leftover.length)
+    leftover = []
+
+    let text = ''
+    let i = 0
+    while (i < raw.length) {
+      const b = raw[i]
+      if (b < 0x80) {
+        text += String.fromCharCode(b)
+        i++
+      } else if (b < 0xE0) {
+        if (i + 1 >= raw.length) { leftover.push(raw[i]); i++; continue }
+        text += String.fromCharCode(((b & 0x1F) << 6) | (raw[i + 1] & 0x3F))
+        i += 2
+      } else if (b < 0xF0) {
+        if (i + 2 >= raw.length) { leftover = Array.from(raw.slice(i)); break }
+        text += String.fromCharCode(((b & 0x0F) << 12) | ((raw[i + 1] & 0x3F) << 6) | (raw[i + 2] & 0x3F))
+        i += 3
+      } else {
+        if (i + 3 >= raw.length) { leftover = Array.from(raw.slice(i)); break }
+        const cp = ((b & 0x07) << 18) | ((raw[i + 1] & 0x3F) << 12) | ((raw[i + 2] & 0x3F) << 6) | (raw[i + 3] & 0x3F)
+        // 超出 BMP 的字符（emoji 等）需要用代理对表示
+        if (cp > 0xFFFF) {
+          const high = 0xD800 + ((cp - 0x10000) >> 10)
+          const low = 0xDC00 + ((cp - 0x10000) & 0x3FF)
+          text += String.fromCharCode(high, low)
+        } else {
+          text += String.fromCharCode(cp)
+        }
+        i += 4
+      }
+    }
+
+    textBuffer += text
+    const lines = textBuffer.split('\n')
+    textBuffer = lines.pop() || ''
 
     for (const line of lines) {
       if (line.startsWith('data: ')) {
@@ -194,4 +244,6 @@ export function chatStream(
       }
     }
   })
+
+  return { abort: () => task.abort() }
 }

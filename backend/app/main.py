@@ -16,6 +16,9 @@ async def lifespan(app: FastAPI):
         from app.rag.data import FOOD_DATA
         from app.rag.store import init_food_db
         init_food_db(FOOD_DATA)
+    # 预加载 Whisper 模型（避免首次请求懒加载超时）
+    from app.routers.speech import _get_model
+    _get_model()
     yield
 
 

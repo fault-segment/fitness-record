@@ -1,6 +1,7 @@
 """LangGraph ReAct Agent graph"""
 from __future__ import annotations
 
+import json
 import operator
 from typing import Annotated, TypedDict
 
@@ -31,9 +32,8 @@ def agent_node(state: AgentState) -> dict:
     return {"messages": [resp]}
 
 
-def tool_node(state: AgentState) -> dict:
+async def tool_node(state: AgentState) -> dict:
     """执行工具调用"""
-    import asyncio
     messages = state["messages"]
     last_msg = messages[-1]
 
@@ -47,7 +47,7 @@ def tool_node(state: AgentState) -> dict:
         tool_fn = tool_map.get(tool_name)
         if tool_fn:
             try:
-                result = asyncio.run(tool_fn.ainvoke(tool_args))
+                result = await tool_fn.ainvoke(tool_args)
             except Exception as e:
                 result = f"工具调用失败: {e}"
         else:
@@ -83,14 +83,29 @@ async def run_agent_stream(user_id: int, user_message: str):
 
     消息类型: text, card, summary, refuse, done
     """
-    import json
-    from langchain_core.messages import AIMessage, AIMessageChunk
+    from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
+
+    def _emit(event_type: str, **kwargs) -> str:
+        """构建 SSE JSON 行"""
+        msg = {"type": event_type, **kwargs}
+        return json.dumps(msg, ensure_ascii=False)
 
     config = {"configurable": {"thread_id": str(user_id)}}
     input_state = {
         "messages": [HumanMessage(content=user_message)],
         "user_id": user_id,
     }
+
+    # 根据用户意图，立即发送初始状态提示（不等 LLM 首轮响应）
+    _msg = user_message
+    if any(kw in _msg for kw in ["吃了", "吃了啥", "吃了什么", "记录", "今天吃", "昨天吃", "早上吃", "中午吃", "晚上吃"]):
+        yield _emit("status", content="正在查询饮食记录...")
+    elif any(kw in _msg for kw in ["热量", "营养", "多少卡", "kcal", "脂肪", "蛋白", "碳水"]):
+        yield _emit("status", content="正在查询营养数据...")
+    elif any(kw in _msg for kw in ["确认", "好的", "OK", "行", "可以", "修改", "删除", "去掉", "换成", "改成", "再加"]):
+        yield _emit("status", content="正在处理...")
+    else:
+        yield _emit("status", content="正在思考...")
 
     def _extract_text(msg) -> str | None:
         """从 AIMessage 或 AIMessageChunk 中提取文本内容"""
@@ -107,21 +122,59 @@ async def run_agent_stream(user_id: int, user_message: str):
             return "".join(parts) if parts else None
         return None
 
-    def _emit(event_type: str, **kwargs) -> str:
-        """构建 SSE JSON 行"""
-        msg = {"type": event_type, **kwargs}
-        return json.dumps(msg, ensure_ascii=False)
+    # 这些工具自带结构化输出（卡片/refuse），或工具返回值已承载全部信息
+    # 调用它们的消息文本需抑制，避免冗余
+    OUTPUT_TOOLS = {"show_confirm_card", "refuse", "get_daily_summary"}
+
+    STATUS_MAP = {
+        "search_food": "正在查询食物数据...",
+        "get_daily_summary": "正在生成摄入汇总...",
+        "save_record": "正在保存记录...",
+        "delete_record": "正在删除记录...",
+        "replace_record": "正在更新记录...",
+        "add_food": "正在添加食物...",
+        "remove_food": "正在移除食物...",
+        "update_food": "正在修改食物...",
+        "show_confirm_card": "正在整理确认卡片...",
+        "query_history": "正在查询历史记录...",
+    }
+
+    _suppress_text = False
 
     async for msg, metadata in graph.astream(input_state, config=config, stream_mode="messages"):
+        # 处理 ToolMessage：检测 get_daily_summary 返回的结构化 JSON
+        if isinstance(msg, ToolMessage):
+            content = msg.content
+            if isinstance(content, str):
+                try:
+                    data = json.loads(content)
+                    if data.get("_summary"):
+                        yield _emit("summary",
+                                    title=data.get("title", ""),
+                                    date=data.get("date", ""),
+                                    foods=data.get("foods", []),
+                                    totals=data.get("totals", {}))
+                        _suppress_text = True
+                except json.JSONDecodeError:
+                    pass
+            continue
+
         if isinstance(msg, (AIMessage, AIMessageChunk)):
-            # 检查 tool_calls，识别结构化消息
             tool_calls = getattr(msg, "tool_calls", None)
+            has_output_tool = False
+
             if tool_calls:
                 for tc in tool_calls:
                     tc_name = tc.get("name", "")
                     tc_args = tc.get("args", {})
 
+                    # 发送状态提示
+                    status_text = STATUS_MAP.get(tc_name)
+                    if status_text:
+                        yield _emit("status", content=status_text)
+
                     if tc_name == "show_confirm_card":
+                        has_output_tool = True
                         try:
                             foods = json.loads(tc_args.get("foods_json", "[]"))
                             totals = json.loads(tc_args.get("totals_json", "{}"))
@@ -131,18 +184,21 @@ async def run_agent_stream(user_id: int, user_message: str):
                             pass
 
                     elif tc_name == "refuse":
+                        has_output_tool = True
                         yield _emit("refuse",
                                     content="抱歉，我只能帮你记录饮食和回答食物相关的问题哦～")
 
                     elif tc_name == "get_daily_summary":
-                        yield _emit("summary",
-                                    title=f"📅 {tc_args.get('date_str', '')} 摄入汇总",
-                                    date=tc_args.get("date_str", ""),
-                                    foods=[], totals={})
+                        has_output_tool = True
 
-            # 文本内容
-            text = _extract_text(msg)
-            if text:
-                yield _emit("text", content=text)
+            # 消息包含输出型工具时跳过文本；summary emit 后抑制后续 LLM 文本
+            if not has_output_tool and not _suppress_text:
+                text = _extract_text(msg)
+                if text:
+                    yield _emit("text", content=text)
+
+            # 仅在新的工具调用出现时重置抑制标记
+            if tool_calls:
+                _suppress_text = False
 
     yield _emit("done")

@@ -1,14 +1,17 @@
 // index.ts
 import { chatStream, SSEMessage, SSEFood, SSETotals } from '../../utils/api'
+import { renderMarkdown } from '../../utils/markdown'
 
 interface IMsg {
   role: 'user' | 'agent'
   type: 'text' | 'card' | 'summary' | 'refuse'
   content: string
+  contentHtml?: string
   foods?: SSEFood[]
   totals?: SSETotals
   card_type?: string
   date?: string
+  isPlaceholder?: boolean
 }
 
 const GREETING = '你好！我是你的饮食助手 🍽\n\n你可以直接告诉我吃了什么，我来帮你记录和分析热量。\n\n也可以试试：\n🍚 记录饮食：「中午吃了米饭红烧肉」\n📅 查看记录：「看看今天的饮食」\n💬 营养咨询：「牛油果热量高吗？」'
@@ -19,15 +22,27 @@ Page({
     inputValue: '',
     inputBottom: 0,
     scrollTop: 0,
+    voiceMode: false,
+    isRecording: false,
+    voiceText: '',
+    debugLog: [] as string[],
+  },
+
+  _debug(msg: string) {
+    const time = new Date().toLocaleTimeString()
+    const logs = [...this.data.debugLog, `[${time}] ${msg}`].slice(-6)
+    this.setData({ debugLog: logs })
+    console.log('[DEBUG]', msg)
   },
 
   onLoad() {
     const app = getApp<IAppOption>()
     const isNew = app.globalData.isNewUser
     if (isNew) {
-      this.addMsg('agent', 'text', GREETING)
+      this.addMsg('agent', 'text', GREETING, { contentHtml: renderMarkdown(GREETING) })
     } else {
-      this.addMsg('agent', 'text', '欢迎回来！今天还没记录呢，吃了什么？')
+      const welcomeBack = '欢迎回来！今天还没记录呢，吃了什么？'
+      this.addMsg('agent', 'text', welcomeBack, { contentHtml: renderMarkdown(welcomeBack) })
     }
   },
 
@@ -51,31 +66,41 @@ Page({
     const text = this.data.inputValue.trim()
     if (!text) return
     this.setData({ inputValue: '' })
-    this.addMsg('user', 'text', text)
 
-    // Agent 回复 — 默认占位
-    const msgIdx = this.data.messages.length
-    this.addMsg('agent', 'text', '思考中...')
+    // 打断当前流：abort SSE 连接，清除上一轮的 agent 消息
+    if (this._currentStream) {
+      this._aborting = true
+      this._currentStream.abort()
+      this._currentStream = null
+      this._cleanupPartialAgentMsgs()
+    }
+
+    this.addMsg('user', 'text', text)
+    this.addMsg('agent', 'text', '思考中...', { isPlaceholder: true, contentHtml: renderMarkdown('思考中...') })
 
     let hasContent = false
+    let streamDone = false
+    const streamStart = Date.now()
 
-    chatStream(
+    this._currentStream = chatStream(
       text,
       (msg: SSEMessage) => {
         if (!hasContent) {
-          // 替换"思考中"占位
           hasContent = true
+          this._debug(`第一个消息: type=${msg.type} (${Date.now() - streamStart}ms)`)
         }
 
         switch (msg.type) {
           case 'text': {
-            // 如果最后一条消息是 text 类型，追加内容；否则新建
+            this._debug(`text: "${msg.content.slice(0, 30)}"`)
             const msgs = [...this.data.messages]
             const last = msgs[msgs.length - 1]
             if (last && last.role === 'agent' && last.type === 'text') {
-              last.content = (last.content === '思考中...' ? '' : last.content) + msg.content
+              last.content = (last.isPlaceholder ? '' : last.content) + msg.content
+              last.isPlaceholder = false
+              last.contentHtml = renderMarkdown(last.content)
             } else {
-              msgs.push({ role: 'agent', type: 'text', content: msg.content })
+              msgs.push({ role: 'agent', type: 'text', content: msg.content, contentHtml: renderMarkdown(msg.content) })
             }
             this.setData({ messages: msgs }, () => {
               this.setData({ scrollTop: 99999 })
@@ -84,6 +109,7 @@ Page({
           }
 
           case 'card': {
+            this._debug(`card: ${(msg.foods || []).length}种食物`)
             const msgs = [...this.data.messages]
             msgs.push({
               role: 'agent',
@@ -100,6 +126,7 @@ Page({
           }
 
           case 'summary': {
+            this._debug(`summary: ${msg.date}, ${(msg.foods || []).length}种食物`)
             const msgs = [...this.data.messages]
             msgs.push({
               role: 'agent',
@@ -116,67 +143,170 @@ Page({
           }
 
           case 'refuse': {
+            this._debug('refuse')
             const msgs = [...this.data.messages]
-            msgs.push({ role: 'agent', type: 'refuse', content: msg.content })
+            msgs.push({ role: 'agent', type: 'refuse', content: msg.content, contentHtml: renderMarkdown(msg.content) })
             this.setData({ messages: msgs }, () => {
               this.setData({ scrollTop: 99999 })
             })
             break
           }
 
+          case 'status': {
+            this._debug(`status: ${msg.content}`)
+            const msgs = [...this.data.messages]
+            const last = msgs[msgs.length - 1]
+            if (last && last.isPlaceholder) {
+              last.content = msg.content
+              last.contentHtml = renderMarkdown(msg.content)
+            }
+            this.setData({ messages: msgs })
+            break
+          }
+
           case 'done':
-            // done 消息不渲染
+            // SSE done 是权威结束信号，在此做清理
+            this._debug(`done (${Date.now() - streamStart}ms) hasContent=${hasContent}`)
+            streamDone = true
+            this._currentStream = null
+            const doneMsgs = [...this.data.messages]
+            const doneLast = doneMsgs[doneMsgs.length - 1]
+            if (doneLast && doneLast.role === 'agent' && doneLast.isPlaceholder && !hasContent) {
+              this._debug('done: 无内容，显示错误')
+              doneLast.content = '网络出了点问题，请稍后再试～'
+              doneLast.isPlaceholder = false
+              doneLast.contentHtml = renderMarkdown(doneLast.content)
+            }
+            this.setData({ messages: doneMsgs })
             break
         }
       },
       () => {
-        // onDone — 确保没有残留 "思考中"
-        const msgs = [...this.data.messages]
-        const last = msgs[msgs.length - 1]
-        if (last && last.role === 'agent' && last.content === '思考中...' && !hasContent) {
-          last.content = '网络出了点问题，请稍后再试～'
-        }
-        this.setData({ messages: msgs })
+        // onDone (HTTP success) — 不做错误判断，SSE done 消息是权威结束信号
+        this._debug(`HTTP success (${Date.now() - streamStart}ms) streamDone=${streamDone} hasContent=${hasContent}`)
+        this._currentStream = null
       },
       () => {
-        // onError
-        const msgs = [...this.data.messages]
-        msgs.push({ role: 'agent', type: 'text', content: '网络出了点问题，请稍后再试～' })
-        this.setData({ messages: msgs })
+        // onError — 网络层错误才显示，主动 abort 不报错
+        this._debug(`HTTP error (${Date.now() - streamStart}ms) streamDone=${streamDone} aborting=${this._aborting}`)
+        if (!streamDone && !this._aborting) {
+          this._currentStream = null
+          const errText = '网络出了点问题，请稍后再试～'
+          const msgs = [...this.data.messages]
+          msgs.push({ role: 'agent', type: 'text', content: errText, contentHtml: renderMarkdown(errText) })
+          this.setData({ messages: msgs })
+        }
+        this._aborting = false
       },
     )
   },
 
-  startVoice() {
-    const recorder = wx.getRecorderManager()
+  // 清除上一次流留下的部分 agent 消息（从最后一个 user 消息之后删起）
+  _cleanupPartialAgentMsgs() {
+    const msgs = this.data.messages
+    let cutIdx = msgs.length
+    while (cutIdx > 0 && msgs[cutIdx - 1].role === 'agent') {
+      cutIdx--
+    }
+    if (cutIdx < msgs.length) {
+      this.setData({ messages: msgs.slice(0, cutIdx) })
+    }
+  },
 
-    recorder.onStart(() => {
-      wx.showToast({ title: '正在听...', icon: 'none', duration: 60000 })
-    })
+  toggleVoiceMode() {
+    this.setData({ voiceMode: !this.data.voiceMode })
+  },
+
+  // ── 语音模式 tap 切换 ──
+
+  _recorder: null as any,
+  _currentStream: null as any,
+  _aborting: false,
+
+  onVoiceTap() {
+    const sys = wx.getSystemInfoSync()
+
+    // 开发者工具降级：弹文字输入框
+    if (sys.platform === 'devtools') {
+      wx.showModal({
+        title: '语音测试',
+        content: '开发者工具不支持真实录音，输入文字模拟语音输入：',
+        editable: true,
+        placeholderText: '比如：我今天中午吃了米饭',
+        success: (res) => {
+          if (res.confirm && res.content && res.content.trim()) {
+            this.setData({ inputValue: res.content.trim() })
+            this.setData({ voiceMode: false })
+            this.sendText()
+          }
+        },
+      })
+      return
+    }
+
+    if (this.data.isRecording) {
+      this._stopRecording()
+    } else {
+      this._startRecording()
+    }
+  },
+
+  _startRecording() {
+    // 缓存 recorder 引用，确保 stop 的是同一个实例
+    this._recorder = wx.getRecorderManager()
+    const recorder = this._recorder
+
+    this._debug('▶ 开始录音')
+
+    this.setData({ isRecording: true, voiceText: '正在聆听...' })
+    wx.vibrateShort({ type: 'medium' })
+
+    recorder.onStart(() => {})
 
     recorder.onStop((res) => {
-      wx.hideToast()
-      const tempPath = res.tempFilePath
-      wx.showLoading({ title: '识别中...' })
+      this._recorder = null
+      const startTime = Date.now()
+      this._debug('■ 录音结束, 上传到ASR...')
+
+      this.setData({ isRecording: false, voiceText: '识别中...' })
+
+      const sys = wx.getSystemInfoSync()
+      const baseUrl = sys.platform === 'devtools' ? 'http://localhost:8000' : 'http://192.168.31.52:8000'
+
       wx.uploadFile({
-        url: 'http://localhost:8000/api/speech-to-text',
-        filePath: tempPath,
+        url: `${baseUrl}/api/speech-to-text`,
+        filePath: res.tempFilePath,
         name: 'audio',
         success: (resp) => {
-          wx.hideLoading()
-          const data = JSON.parse(resp.data) as { text: string }
-          this.setData({ inputValue: data.text })
-          this.sendText()
+          const elapsed = Date.now() - startTime
+          const data = JSON.parse(resp.data) as { text: string; error?: string }
+          if (data.error) {
+            this._debug(`✗ ASR失败: ${data.error}`)
+            wx.showToast({ title: data.error, icon: 'none' })
+          } else if (data.text && data.text.trim()) {
+            this._debug(`✓ 识别: "${data.text}" (${elapsed}ms)`)
+            this.setData({ voiceText: '', voiceMode: false })
+            wx.showToast({ title: `「${data.text}」(${elapsed}ms)`, icon: 'none', duration: 2000 })
+            // 自动填入并发送
+            this.setData({ inputValue: data.text.trim() })
+            this.sendText()
+          } else {
+            this._debug('✗ ASR返回空')
+            wx.showToast({ title: '没听清，请再说一次', icon: 'none' })
+          }
         },
-        fail: () => {
-          wx.hideLoading()
-          wx.showToast({ title: '语音识别失败，请重试', icon: 'none' })
+        fail: (err) => {
+          this._debug(`✗ 上传失败: ${JSON.stringify(err)}`)
+          this.setData({ isRecording: false, voiceText: '' })
+          wx.showToast({ title: '识别失败，请检查网络', icon: 'none' })
         },
       })
     })
 
     recorder.onError(() => {
-      wx.hideToast()
+      this._debug('✗ 录音失败')
+      this._recorder = null
+      this.setData({ isRecording: false, voiceText: '' })
       wx.showToast({ title: '录音失败，请重试', icon: 'none' })
     })
 
@@ -186,7 +316,12 @@ Page({
       format: 'mp3',
     })
 
-    setTimeout(() => recorder.stop(), 15000)
+  },
+
+  _stopRecording() {
+    if (this._recorder) {
+      this._recorder.stop()
+    }
   },
 
   // 确认卡片 — 用户点击确认
@@ -194,7 +329,7 @@ Page({
     const idx = e.currentTarget.dataset.index
     const msg = this.data.messages[idx]
     const foodNames = (msg.foods || []).map((f: SSEFood) => f.name).join('、')
-    const totalKcal = msg.totals?.kcal || 0
+    const totalKcal = (msg.totals && msg.totals.kcal) || 0
     this.setData({ inputValue: `确认：${foodNames}，共${totalKcal}kcal` })
     this.sendText()
   },

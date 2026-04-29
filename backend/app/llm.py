@@ -13,6 +13,7 @@ def get_llm():
             api_key=settings.llm_api_key,
             base_url=settings.llm_base_url,
             temperature=0.3,
+            thinking={"type": "disabled"},
         )
     else:
         from langchain_openai import ChatOpenAI

@@ -1,5 +1,12 @@
 <!-- 饮食助手 — 纯对话界面 -->
 <view class="page">
+  <!-- 调试面板 -->
+  <view wx:if="{{debugLog.length > 0}}" class="debug-panel">
+    <block wx:for="{{debugLog}}" wx:key="index">
+      <view class="debug-line">{{item}}</view>
+    </block>
+  </view>
+
   <scroll-view
     class="chat-list"
     scroll-y
@@ -9,15 +16,15 @@
     <block wx:for="{{messages}}" wx:key="index">
       <!-- Agent 消息 -->
       <view wx:if="{{item.role === 'agent'}}" class="msg-bot">
-        <!-- 普通文本 -->
+        <!-- 普通文本 — markdown 渲染 -->
         <view wx:if="{{item.type === 'text'}}" class="bubble bot">
-          <text>{{item.content}}</text>
+          <rich-text nodes="{{item.contentHtml}}" mode="web"></rich-text>
         </view>
 
         <!-- 确认卡片 -->
         <view wx:elif="{{item.type === 'card'}}" class="card confirm-card">
           <view class="card-title">帮你整理好了，确认一下：</view>
-          <view wx:for="{{item.foods}}" wx:for-item="food" wx:key="name" class="card-row">
+          <view wx:for="{{item.foods}}" wx:for-item="food" wx:key="*this" class="card-row">
             <text class="card-food">{{food.name}} <text class="card-amount">~{{food.amount}}</text></text>
             <text class="card-kcal">{{food.kcal}} kcal</text>
           </view>
@@ -45,41 +52,67 @@
             <text>蛋白质 {{item.totals.protein}}g | 碳水 {{item.totals.carbs}}g | 脂肪 {{item.totals.fat}}g</text>
           </view>
           <view wx:if="{{item.foods.length > 0}}" class="card-divider"></view>
-          <view wx:for="{{item.foods}}" wx:for-item="food" wx:key="name" class="card-row">
+          <view wx:for="{{item.foods}}" wx:for-item="food" wx:key="*this" class="card-row">
             <text class="card-food">{{food.name}} <text class="card-amount">~{{food.amount}}</text></text>
             <text class="card-kcal">{{food.kcal}} kcal</text>
           </view>
         </view>
 
-        <!-- 拒绝消息 -->
+        <!-- 拒绝消息 — markdown 渲染 -->
         <view wx:elif="{{item.type === 'refuse'}}" class="bubble refuse">
-          <text>{{item.content}}</text>
+          <rich-text nodes="{{item.contentHtml}}" mode="web"></rich-text>
         </view>
       </view>
 
       <!-- 用户消息 -->
       <view wx:if="{{item.role === 'user'}}" class="msg-self">
         <view class="bubble self">
-          <text>{{item.content}}</text>
+          <text user-select="{{true}}">{{item.content}}</text>
         </view>
       </view>
     </block>
   </scroll-view>
 
-  <!-- 底部输入栏 -->
-  <view class="input-bar" style="padding-bottom: {{inputBottom}}px;">
-    <view class="btn-voice" bindtap="startVoice">🎤</view>
+  <!-- 录音中提示条 -->
+  <view wx:if="{{isRecording}}" class="recording-bar" bindtap="stopVoice">
+    <view class="recording-wave">
+      <view class="wave-bar"></view>
+      <view class="wave-bar"></view>
+      <view class="wave-bar"></view>
+      <view class="wave-bar"></view>
+    </view>
+    <text class="recording-text">{{voiceText}}</text>
+    <text class="recording-hint">点击停止</text>
+  </view>
+
+  <!-- 底部输入栏：文字模式 -->
+  <view wx:if="{{!voiceMode}}" class="input-bar">
+    <view class="btn-voice" bindtap="toggleVoiceMode">🎤</view>
     <view class="input-wrap">
       <input
         class="msg-input"
         placeholder="说点什么..."
         value="{{inputValue}}"
         bindinput="onInput"
+        bindkeyboardheightchange="onKeyboardHeightChange"
         confirm-type="send"
         bindconfirm="sendText"
-        adjust-position="{{false}}"
+        adjust-position="{{true}}"
+        hold-keyboard="{{true}}"
       />
     </view>
     <view class="btn-send" bindtap="sendText">发送</view>
+  </view>
+
+  <!-- 底部输入栏：语音模式 -->
+  <view wx:else class="input-bar voice-mode">
+    <view class="btn-voice" bindtap="toggleVoiceMode">⌨</view>
+    <view
+      class="voice-zone {{isRecording ? 'recording' : ''}}"
+      bindtap="onVoiceTap"
+    >
+      <text wx:if="{{!isRecording}}">●  点击 开始录音</text>
+      <text wx:else>● 录音中  点击停止</text>
+    </view>
   </view>
 </view>

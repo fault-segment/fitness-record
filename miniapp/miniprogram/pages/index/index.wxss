@@ -157,6 +157,96 @@
 .btn-voice {
   font-size: 44rpx;
   line-height: 1;
+  transition: transform 0.2s;
+  min-width: 44rpx;
+  text-align: center;
+}
+
+/* 语音模式：全宽按住说话按钮 */
+.voice-zone {
+  flex: 1;
+  background: #f5f5f5;
+  border-radius: 20rpx;
+  text-align: center;
+  padding: 24rpx 0;
+  font-size: 32rpx;
+  color: #07c160;
+  font-weight: 600;
+  user-select: none;
+  transition: background 0.15s;
+  min-height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-zone:active {
+  background: #e0e0e0;
+  transform: scale(0.98);
+}
+
+.voice-zone.recording {
+  background: #ffe8e8;
+  color: #e74c3c;
+  animation: voicePulse 1.2s ease-in-out infinite;
+}
+
+@keyframes voicePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.input-bar.voice-mode {
+  gap: 12rpx;
+  padding: 18rpx 20rpx;
+}
+
+/* 录音中提示条 */
+.recording-bar {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 24rpx;
+  background: #fff3f3;
+  border-bottom: 1rpx solid #fdd;
+  gap: 16rpx;
+}
+
+.recording-wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 4rpx;
+  height: 36rpx;
+}
+
+.wave-bar {
+  width: 6rpx;
+  background: #e74c3c;
+  border-radius: 3rpx;
+  animation: wave 0.8s ease-in-out infinite;
+}
+
+.wave-bar:nth-child(1) { height: 16rpx; animation-delay: 0s; }
+.wave-bar:nth-child(2) { height: 32rpx; animation-delay: 0.2s; }
+.wave-bar:nth-child(3) { height: 24rpx; animation-delay: 0.4s; }
+.wave-bar:nth-child(4) { height: 20rpx; animation-delay: 0.3s; }
+
+@keyframes wave {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.recording-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: #e74c3c;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.recording-hint {
+  font-size: 22rpx;
+  color: #999;
 }
 
 .input-wrap {
@@ -175,4 +265,82 @@
   font-size: 26rpx;
   color: #07c160;
   padding: 10rpx 16rpx;
+}
+
+/* 调试面板 */
+.debug-panel {
+  background: #1a1a2e;
+  padding: 8rpx 16rpx;
+  border-bottom: 2rpx solid #333;
+}
+
+.debug-line {
+  font-size: 20rpx;
+  color: #0f0;
+  font-family: monospace;
+  line-height: 1.6;
+}
+
+/* rich-text 内部样式 — markdown 渲染 */
+.bubble.bot rich-text,
+.bubble.refuse rich-text {
+  font-size: 28rpx;
+  line-height: 1.6;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.bubble.bot rich-text table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12rpx 0;
+}
+
+.bubble.bot rich-text th,
+.bubble.bot rich-text td {
+  padding: 8rpx 12rpx;
+  border: 1rpx solid #ddd;
+  text-align: left;
+}
+
+.bubble.bot rich-text th {
+  background: #f5f5f5;
+  font-weight: bold;
+}
+
+.bubble.bot rich-text ul,
+.bubble.bot rich-text ol {
+  padding-left: 32rpx;
+  margin: 8rpx 0;
+}
+
+.bubble.bot rich-text hr {
+  border: none;
+  border-top: 1rpx solid #eee;
+  margin: 16rpx 0;
+}
+
+.bubble.bot rich-text h3 {
+  font-size: 30rpx;
+  font-weight: bold;
+  margin: 12rpx 0 6rpx;
+}
+
+.bubble.bot rich-text strong {
+  font-weight: bold;
+}
+
+.bubble.bot rich-text em {
+  font-style: italic;
+}
+
+.bubble.bot rich-text code {
+  background: #f0f0f0;
+  padding: 2rpx 8rpx;
+  border-radius: 4rpx;
+  font-size: 24rpx;
+}
+
+.bubble.bot rich-text p {
+  margin: 4rpx 0;
 }
