@@ -136,20 +136,15 @@ def classify_intent(message: str) -> tuple[Literal["fast", "agent"], str | None,
     """
     msg = message.strip()
 
-    # 1. refuse — 非饮食话题
-    if any(kw in msg for kw in REFUSE_KEYWORDS):
-        return ("fast", "refuse", {"reason": "non-diet topic"})
-
-    # 2. query_summary — 查询某日汇总
+    # 1. query_summary — 查询某日汇总
     for pattern in QUERY_SUMMARY_PATTERNS:
         if re.search(pattern, msg):
-            # 如果同时包含记录意图（如 "今天吃了米饭红烧肉"），回退 LLM
             if _has_record_intent(message):
                 return ("agent", None, None)
             query_date = _extract_date(msg).isoformat()
             return ("fast", "get_daily_summary", {"date_str": query_date, "user_id": 0})
 
-    # 3. query_history — 历史范围查询
+    # 2. query_history — 历史范围查询
     for pattern in QUERY_HISTORY_PATTERNS:
         if re.search(pattern, msg):
             days = _extract_days(msg) or 7
@@ -158,11 +153,5 @@ def classify_intent(message: str) -> tuple[Literal["fast", "agent"], str | None,
             end = today.isoformat()
             return ("fast", "query_history", {"start_date": start, "end_date": end, "user_id": 0})
 
-    # 4. search_food — 营养查询（不含记录意图）
-    if any(kw in msg for kw in NUTRITION_KEYWORDS):
-        if not _has_record_intent(message):
-            food_name = _extract_food_name(msg)
-            return ("fast", "search_food", {"food_name": food_name})
-
-    # 5. fallback to LLM ReAct
+    # refuse / search_food 不再快速路由 — 正则多匹配风险高，交给 LLM 判断
     return ("agent", None, None)

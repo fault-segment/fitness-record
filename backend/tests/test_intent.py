@@ -72,38 +72,19 @@ class TestClassifyIntent:
         expected_start = (date.today() - timedelta(days=3)).isoformat()
         assert args["start_date"] == expected_start
 
-    # ———— search_food ————
+    # ———— search_food / refuse 不再快速路由，回退 LLM ————
 
     @pytest.mark.parametrize("msg", [
         "米饭热量多少",
         "鸡蛋的蛋白质含量",
         "红烧肉多少卡",
-        "查询米饭的营养成分",
-        "牛奶脂肪含量",
-        "面包的碳水多少",
-        "鸡胸肉kcal",
-    ])
-    def test_search_food_fast_route(self, msg):
-        intent, tool_name, tool_args = classify_intent(msg)
-        assert intent == "fast", f"'{msg}' should be fast route"
-        assert tool_name == "search_food"
-        assert "food_name" in tool_args
-        assert len(tool_args["food_name"]) > 0
-
-    # ———— refuse ————
-
-    @pytest.mark.parametrize("msg", [
         "今天天气怎么样",
-        "最新新闻",
-        "推荐一只股票",
         "有什么好看的电影",
-        "播放音乐",
-        "打游戏",
     ])
-    def test_refuse_fast_route(self, msg):
-        intent, tool_name, tool_args = classify_intent(msg)
-        assert intent == "fast", f"'{msg}' should be fast route"
-        assert tool_name == "refuse"
+    def test_search_refuse_fallback_to_agent(self, msg):
+        intent, tool_name, _ = classify_intent(msg)
+        assert intent == "agent", f"'{msg}' should fallback to agent (fast route removed)"
+        assert tool_name is None
 
     # ———— fallback to agent ————
 
