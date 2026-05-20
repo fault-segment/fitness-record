@@ -6,3 +6,6 @@ venv/
 .DS_Store
 backend/data/
 openapi.json
+.idea/
+.superpowers/
+.claude/
