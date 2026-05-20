@@ -99,6 +99,7 @@ Page({
 
     let hasContent = false
     let streamDone = false
+    let newBubbleNext = false
     const streamStart = Date.now()
 
     this._currentStream = chatStream(
@@ -114,12 +115,13 @@ Page({
             this._debug(`text: "${msg.content.slice(0, 30)}"`)
             const msgs = [...this.data.messages]
             const last = msgs[msgs.length - 1]
-            if (last && last.role === 'agent' && last.type === 'text') {
+            if (newBubbleNext || !last || last.role !== 'agent' || last.type !== 'text') {
+              msgs.push({ role: 'agent', type: 'text', content: msg.content, contentHtml: renderMarkdown(msg.content) })
+              newBubbleNext = false
+            } else {
               last.content = (last.isPlaceholder ? '' : last.content) + msg.content
               last.isPlaceholder = false
               last.contentHtml = renderMarkdown(last.content)
-            } else {
-              msgs.push({ role: 'agent', type: 'text', content: msg.content, contentHtml: renderMarkdown(msg.content) })
             }
             this.setData({ messages: msgs }, () => {
               this.setData({ scrollTop: 99999 })
@@ -178,6 +180,8 @@ Page({
             if (last && last.isPlaceholder) {
               last.content = msg.content
               last.contentHtml = renderMarkdown(msg.content)
+            } else {
+              newBubbleNext = true
             }
             this.setData({ messages: msgs })
             break
