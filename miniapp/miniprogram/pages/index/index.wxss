@@ -12,6 +12,29 @@
   overflow-y: auto;
 }
 
+/* 今日摄入顶部栏 */
+.today-bar {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-bottom: 1rpx solid #eee;
+  font-size: 26rpx;
+  flex-shrink: 0;
+}
+.today-label {
+  color: #666;
+}
+.today-kcal {
+  color: #07c160;
+  font-weight: bold;
+  margin: 0 16rpx;
+}
+.today-macros {
+  color: #999;
+  font-size: 24rpx;
+}
+
 /* 消息气泡 */
 .msg-self {
   display: flex;
@@ -273,12 +296,26 @@
   padding: 8rpx 16rpx;
   border-bottom: 2rpx solid #333;
 }
+.debug-panel.collapsed {
+  padding: 6rpx 16rpx;
+}
 
 .debug-line {
   font-size: 20rpx;
   color: #0f0;
   font-family: monospace;
   line-height: 1.6;
+}
+
+.debug-collapsed {
+  display: flex;
+  justify-content: center;
+}
+.debug-collapsed-text {
+  font-size: 20rpx;
+  color: #0f0;
+  opacity: 0.5;
+  font-family: monospace;
 }
 
 /* rich-text 内部样式 — markdown 渲染 */

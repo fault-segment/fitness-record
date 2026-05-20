@@ -28,6 +28,7 @@
 - [x] CRUD 完整链路：新建/全量替换/追加/移除/修改单个食物/删除整餐
 - [x] 工具节点改为 async（`await tool_fn.ainvoke()` 替代 `asyncio.run()`），避免阻塞事件循环
 - [x] 系统提示词动态日期 + 餐次推断规则（早上→早餐、中午/午饭→午餐、晚上/晚饭→晚餐）
+- [x] **意图分类快速路由**：对确定性操作（查询汇总/历史/食物搜索/拒绝）通过关键词匹配直接调工具，跳过 LLM ReAct 循环，延迟从 5-10s 降到 <1s。新增 `app/agent/intent.py` 分类器 + `graph.py` fast route 分支
 
 ### SSE 流式对话
 
@@ -50,7 +51,7 @@
 - [x] rich-text 内部样式：表格、列表、标题、代码块、段落
 - [x] 占位消息机制（`isPlaceholder` 标志）：状态提示通过更新占位内容逐条显示
 - [x] 确认卡片交互：确认按钮 / 修改按钮 → 回传 Agent
-- [x] 语音输入模式：点按切换录音 → ASR 识别 → 自动填入发送（Whisper base 模型，启动时预加载）
+- [x] 语音输入模式：点按切换录音 → ASR 识别 → 自动填入发送（Whisper base 模型，本地启动时预加载；服务器端部署受阻，见下方 ASR 服务器部署）
 - [x] 开发者工具降级：模拟器中弹文字输入框模拟语音输入
 - [x] 流中断处理：新消息发送时 abort 当前 SSE + 清除残留 agent 消息（`_aborting` 标记区分主动 abort 和网络错误）
 - [x] 错误/空响应兜底："网络出了点问题，请稍后再试～"
@@ -59,30 +60,34 @@
 
 ### 测试
 
-- [x] 61/61 全部通过
-- 7 个测试文件：test_agent_tools(10)、test_api(5)、test_config(8)、test_e2e_chat(7)、test_graph(8)、test_rag(9)、test_sse_format(14)
+- [x] 112/112 全部通过
+- 8 个测试文件：test_agent_tools(10)、test_api(5)、test_config(8)、test_e2e_chat(7)、test_graph(8)、test_intent(58)、test_rag(9)、test_sse_format(14)
 
 ## 未完成
 
-### 高优先级
+### 高优先级（文字功能上线）
 
-- [ ] **意图分类快速路由**：确定性操作（查询汇总/历史/拒绝）跳过 LLM ReAct，关键词直接调工具，延迟从 5-10s 降到 <1s。方案：graph 入口加 `classify_intent` 节点 → query/refuse/agent 三条分支
+- [x] **意图分类快速路由**：确定性操作（查询汇总/历史/拒绝）跳过 LLM ReAct，关键词直接调工具，延迟从 5-10s 降到 <1s。方案：graph 入口加 `classify_intent` 节点 → query/refuse/agent 三条分支
+- [x] **备案 + HTTPS**：ICP 备案通过（苏ICP备2026026991号），SSL 证书已部署，备案号已挂网站底部
+- [ ] **小程序发布**：微信公众平台配置服务器域名 + 提交审核
+- [ ] **内容安全**：未接入微信内容安全 API（msgSecCheck），小程序审核可能需要
+- [ ] **后端日志系统**：当前 uvicorn 日志仅输出到终端，无持久化、无分级、无请求追踪。需接入结构化日志（如 loguru），支持请求级别 trace_id、日志文件轮转、按级别过滤
 
 ### 中优先级
 
-- [ ] **小程序发布**：需备案域名 + HTTPS + 微信公众平台配置服务器域名（审核中）
-- [ ] **内容安全**：未接入微信内容安全 API（msgSecCheck），小程序审核可能需要
 - [ ] **多轮对话记忆持久化**：MemorySaver 为内存存储，服务重启丢失
 - [ ] **分享卡片功能**：设计文档有但未实现（v2 规划）
 
 ### 低优先级
 
+- [ ] **语音功能上线**：当前本地 Whisper base 可用但中文识别一般。服务器端部署 SenseVoiceSmall 需 2C4G 或换阿里云 API。先聚焦文字功能发布，语音后续再议。详见 `docs/freeasr-deploy-progress.md`
 - [ ] **TiDB Cloud 连接稳定性长期观察**：7 分钟空闲测试通过，pool_pre_ping + pool_recycle 有效。生产环境需持续观察
 - [ ] **食物数据扩展**：49 种有限，考虑接入开放食品数据库
 - [ ] **热量目标设定**：用户设定每日热量目标 + 超额提醒
 - [ ] **部署配置**：Dockerfile、docker-compose、环境变量生产配置
 - [ ] **SSE StreamSession 状态机重构**：当前 SSE 流生命周期靠散落 bool 标志（`_aborting`、`hasContent`、`streamDone`、`isPlaceholder`、`_currentStream`）在回调间传递状态，bug 多。理想设计：`StreamSession(idle→connecting→streaming→done/aborted/error)` 状态机，封装 abort/onMessage/onDone/onError，Page 只持有一个 `_session` 引用
 - [ ] **LangGraph 真 interrupt 替代伪 interrupt**：确认卡片流程改为 graph 内 `interrupt()` + `Command(resume=...)`，消除两次独立请求带来的 abort 竞态
+- [ ] **tool_node 并行化**：同一轮多个 tool_calls 之间无依赖（如 5 个 search_food），改为 `asyncio.gather()` 并行执行，减少串行等待
 
 ## 环境配置
 
@@ -123,14 +128,16 @@ backend/
   app/database.py        # SQLAlchemy async engine + SSL
   app/llm.py             # LLM 抽象层（openai/anthropic）
   app/middleware.py       # JWT create/verify/get_user_id
-  app/agent/graph.py     # LangGraph ReAct 图 + run_agent_stream (SSE status)
+  app/agent/graph.py     # LangGraph ReAct 图 + run_agent_stream (SSE status + fast route)
   app/agent/tools.py     # 11 个 Agent 工具
   app/agent/prompt.py    # 中文系统提示词（动态日期 + 输出约束）
+  app/agent/intent.py    # 意图分类快速路由（关键词匹配 + 日期解析）
   app/rag/store.py       # Chroma + BGE 向量检索
   app/rag/data.py        # 49 种食物营养数据
   app/models/record.py   # FoodRecord + FoodItem 模型
   tests/test_agent_tools.py  # 工具回归测试
   tests/test_e2e_chat.py     # 端到端对话测试
+  tests/test_intent.py       # 意图分类单元测试
 
 miniapp/miniprogram/
   utils/api.ts           # HTTP 客户端 + chatStream SSE + UTF-8 解码

@@ -1,5 +1,5 @@
 // index.ts
-import { chatStream, SSEMessage, SSEFood, SSETotals } from '../../utils/api'
+import { chatStream, SSEMessage, SSEFood, SSETotals, fetchTodaySummary, TodaySummary } from '../../utils/api'
 import { renderMarkdown } from '../../utils/markdown'
 
 interface IMsg {
@@ -26,6 +26,8 @@ Page({
     isRecording: false,
     voiceText: '',
     debugLog: [] as string[],
+    debugExpanded: false,
+    todaySummary: { kcal: 0, protein: 0, carbs: 0, fat: 0, food_count: 0 } as TodaySummary,
   },
 
   _debug(msg: string) {
@@ -33,6 +35,10 @@ Page({
     const logs = [...this.data.debugLog, `[${time}] ${msg}`].slice(-6)
     this.setData({ debugLog: logs })
     console.log('[DEBUG]', msg)
+  },
+
+  toggleDebug() {
+    this.setData({ debugExpanded: !this.data.debugExpanded })
   },
 
   onLoad() {
@@ -44,6 +50,19 @@ Page({
       const welcomeBack = '欢迎回来！今天还没记录呢，吃了什么？'
       this.addMsg('agent', 'text', welcomeBack, { contentHtml: renderMarkdown(welcomeBack) })
     }
+    this.fetchTodaySummary()
+  },
+
+  onShow() {
+    this.fetchTodaySummary()
+  },
+
+  fetchTodaySummary() {
+    fetchTodaySummary().then((summary: TodaySummary) => {
+      this.setData({ todaySummary: summary })
+    }).catch(() => {
+      // 静默失败，顶部栏显示为空
+    })
   },
 
   onKeyboardHeightChange(e: any) {
@@ -178,6 +197,7 @@ Page({
               doneLast.contentHtml = renderMarkdown(doneLast.content)
             }
             this.setData({ messages: doneMsgs })
+            this.fetchTodaySummary()
             break
         }
       },

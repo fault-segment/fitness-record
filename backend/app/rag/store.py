@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import chromadb
 from sentence_transformers import SentenceTransformer
+from loguru import logger
 
 from app.config import settings
 
@@ -31,7 +32,7 @@ def init_food_db(food_data: list[dict]):
     try:
         client.delete_collection(COLLECTION_NAME)
     except Exception:
-        pass
+        logger.warning("Failed to delete Chroma collection (may not exist yet)")
 
     collection = client.create_collection(
         name=COLLECTION_NAME,
@@ -58,7 +59,7 @@ def init_food_db(food_data: list[dict]):
         embeddings.append(_get_embedding(text))
 
     collection.add(ids=ids, documents=documents, metadatas=metadatas, embeddings=embeddings)
-    print(f"Seeded {len(food_data)} foods into Chroma")
+    logger.info("Seeded {} foods into Chroma", len(food_data))
 
 
 def search_food(query: str, top_k: int = 5) -> list[dict]:
@@ -67,6 +68,7 @@ def search_food(query: str, top_k: int = 5) -> list[dict]:
     try:
         collection = client.get_collection(COLLECTION_NAME)
     except Exception:
+        logger.warning("Failed to open Chroma collection for search")
         return []
 
     query_emb = _get_embedding(query)

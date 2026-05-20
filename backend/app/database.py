@@ -1,6 +1,7 @@
 from sqlalchemy import URL
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from loguru import logger
 
 from app.config import settings
 
@@ -40,11 +41,15 @@ async def get_session() -> AsyncSession:
     async with async_session() as session:
         try:
             yield session
+        except Exception:
+            logger.exception("Session error")
+            raise
         finally:
             await session.close()
 
 
 async def init_db():
-    from app.models import User, FoodRecord, FoodItem  # noqa: F401  # ensure models loaded
+    from app.models import User, FoodRecord, FoodItem  # noqa: F401
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    logger.info("Database tables created/verified")

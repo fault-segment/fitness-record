@@ -1,11 +1,18 @@
 """LLM 抽象层 — 统一 OpenAI / Anthropic 接口，方便后续切换 provider"""
 from __future__ import annotations
 
+from loguru import logger
+
 from app.config import settings
 
 
 def get_llm():
     """根据 settings.llm_provider 创建对应的 LLM 实例"""
+    logger.info(
+        "LLM provider: {provider} model={model}",
+        provider=settings.llm_provider,
+        model=settings.llm_model,
+    )
     if settings.llm_provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
         return ChatAnthropic(

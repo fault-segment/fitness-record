@@ -42,6 +42,8 @@ miniapp/                        WeChat Mini Program (native TS)
 docs/
   api-protocol.md               Frontend-backend API protocol (SSE message types)
   progress.md                   Current implementation progress
+  plans/                        Implementation plans for pending features
+    2026-04-30_backend-logging.md   Backend structured logging with loguru
   superpowers/
     specs/2026-04-24-diet-recorder-design.md     Full design document
     plans/2026-04-27-diet-agent-implementation.md 7-task implementation plan
@@ -149,6 +151,12 @@ User: "吃了米饭红烧肉"
 `app/llm.py` provides `get_llm()` factory, switching on `LLM_PROVIDER` env var:
 - `"openai"` → `ChatOpenAI` (any OpenAI-compatible endpoint)
 - `"anthropic"` → `ChatAnthropic` (MiniMax M2.7 via `api.minimaxi.com/anthropic`)
+
+## Documentation Conventions
+
+- **Plan documents**: Write to `docs/plans/YYYY-MM-DD_<topic>.md` before implementing any non-trivial feature.
+- **Spec documents**: Write to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`.
+- **Progress tracking**: Update `docs/progress.md` after each significant change.
 
 ## Key Constraints
 

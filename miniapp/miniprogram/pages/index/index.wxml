@@ -1,10 +1,20 @@
 <!-- 饮食助手 — 纯对话界面 -->
 <view class="page">
   <!-- 调试面板 -->
-  <view wx:if="{{debugLog.length > 0}}" class="debug-panel">
-    <block wx:for="{{debugLog}}" wx:key="index">
-      <view class="debug-line">{{item}}</view>
+  <view wx:if="{{debugLog.length > 0}}" class="debug-panel {{debugExpanded ? '' : 'collapsed'}}" bindtap="toggleDebug">
+    <block wx:if="{{debugExpanded}}">
+      <view wx:for="{{debugLog}}" wx:key="index" class="debug-line">{{item}}</view>
     </block>
+    <view wx:if="{{!debugExpanded}}" class="debug-collapsed">
+      <text class="debug-collapsed-text">Debug ({{debugLog.length}})</text>
+    </view>
+  </view>
+
+  <!-- 今日热量顶部栏 -->
+  <view class="today-bar" wx:if="{{todaySummary.kcal > 0}}">
+    <text class="today-label">今日摄入</text>
+    <text class="today-kcal">{{todaySummary.kcal}} kcal</text>
+    <text class="today-macros">蛋白{{todaySummary.protein}}g 碳水{{todaySummary.carbs}}g 脂肪{{todaySummary.fat}}g</text>
   </view>
 
   <scroll-view

@@ -13,3 +13,4 @@ langchain-openai>=0.3.0
 langchain-anthropic>=0.3.0
 sentence-transformers>=3.0.0
 openai-whisper>=20250625
+loguru>=0.7.0

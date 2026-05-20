@@ -3,6 +3,7 @@ from __future__ import annotations
 import jwt
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from loguru import logger
 
 from app.config import settings
 
@@ -19,6 +20,7 @@ def verify_token(token: str) -> int:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
         return payload["user_id"]
     except jwt.PyJWTError:
+        logger.warning("Invalid or expired token")
         raise HTTPException(status_code=401, detail="token 无效或已过期")
 
 
@@ -27,5 +29,6 @@ async def get_user_id(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> int:
     if credentials is None:
+        logger.warning("Request missing auth credentials")
         raise HTTPException(status_code=401, detail="请先登录")
     return verify_token(credentials.credentials)

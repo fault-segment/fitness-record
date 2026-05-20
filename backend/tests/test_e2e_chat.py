@@ -3,8 +3,10 @@ import json
 import httpx
 import pytest
 
+from app.middleware import create_token
+
 BASE = "http://localhost:8000"
-TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxfQ.mG-MW0IbX8IGl0a1BpQzqg1FlsEp0Z3OvE6ath50Nj4"
+TOKEN = create_token(1)
 
 
 def collect_sse(message: str) -> list[dict]:
