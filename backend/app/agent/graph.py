@@ -13,6 +13,10 @@ from loguru import logger
 from app.agent.prompt import get_system_prompt
 from app.agent.tools import ALL_TOOLS
 from app.llm import get_llm
+from app.database import async_session
+from app.models import FoodRecord
+from sqlalchemy import select
+from datetime import date
 
 
 class AgentState(TypedDict):
@@ -85,6 +89,35 @@ memory = MemorySaver()
 graph = workflow.compile(checkpointer=memory)
 
 
+async def _build_today_context(user_id: int) -> str:
+    """查询用户今日已记录的食物，注入 system prompt。"""
+    today = date.today().isoformat()
+    async with async_session() as session:
+        result = await session.execute(
+            select(FoodRecord).where(
+                FoodRecord.user_id == user_id,
+                FoodRecord.record_date == today,
+            )
+        )
+        records = result.scalars().all()
+
+        if not records:
+            return ""
+
+        all_foods: list[str] = []
+        total_kcal = 0
+        for rec in records:
+            await session.refresh(rec, ["items"])
+            for item in rec.items:
+                all_foods.append(f"{item.food_name} {item.amount_g}g（{item.kcal}kcal）")
+                total_kcal += item.kcal
+
+        food_list = "、".join(all_foods)
+        return f"""## 用户今日已记录
+用户今天已经记录了以下食物：{food_list}，总计约 {total_kcal}kcal。
+在对话中提到"今天吃了什么"时，参考以上数据回答。记录新食物时注意累计热量不要重复计算。"""
+
+
 async def run_agent_stream(user_id: int, user_message: str):
     """流式运行 Agent，yield JSON 结构化消息。
 
@@ -147,9 +180,13 @@ async def run_agent_stream(user_id: int, user_message: str):
         yield _emit("done")
         return
 
+    # 查询今日已记录的食物，注入 system prompt
+    today_context = await _build_today_context(user_id)
+    system_prompt = get_system_prompt(today_context)
+
     config = {"configurable": {"thread_id": str(user_id)}}
     input_state = {
-        "messages": [HumanMessage(content=user_message)],
+        "messages": [SystemMessage(content=system_prompt), HumanMessage(content=user_message)],
         "user_id": user_id,
     }
 
