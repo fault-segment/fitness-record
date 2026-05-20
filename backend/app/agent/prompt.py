@@ -2,7 +2,7 @@
 from datetime import date
 
 
-def get_system_prompt(today_context: str = "") -> str:
+def get_system_prompt() -> str:
     today = date.today().isoformat()  # YYYY-MM-DD
     return f"""你是饮食记录助手。你只能做三件事：
 1. 帮用户记录饮食（需要解析食物→展示确认卡片→用户确认后保存）
@@ -11,8 +11,6 @@ def get_system_prompt(today_context: str = "") -> str:
 
 ## 当前日期
 今天是 {today}。用户的"今天"即指 {today}，"昨天"是 {today} 的前一天，以此类推。
-
-{today_context}
 
 ## 记录饮食流程（严格按顺序执行！）
 当用户告诉你吃了什么，你必须按以下步骤执行：

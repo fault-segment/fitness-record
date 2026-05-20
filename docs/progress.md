@@ -88,6 +88,7 @@
 - [ ] **SSE StreamSession 状态机重构**：当前 SSE 流生命周期靠散落 bool 标志（`_aborting`、`hasContent`、`streamDone`、`isPlaceholder`、`_currentStream`）在回调间传递状态，bug 多。理想设计：`StreamSession(idle→connecting→streaming→done/aborted/error)` 状态机，封装 abort/onMessage/onDone/onError，Page 只持有一个 `_session` 引用
 - [ ] **LangGraph 真 interrupt 替代伪 interrupt**：确认卡片流程改为 graph 内 `interrupt()` + `Command(resume=...)`，消除两次独立请求带来的 abort 竞态
 - [ ] **tool_node 并行化**：同一轮多个 tool_calls 之间无依赖（如 5 个 search_food），改为 `asyncio.gather()` 并行执行，减少串行等待
+- [ ] **确认保存不经过 Agent**：用户点击确认后前端直接 `POST /api/records` 保存，跳过 LLM ReAct（当前每次确认浪费 3-5 秒）。是最频繁的操作，优化收益最大
 
 ## 环境配置
 
