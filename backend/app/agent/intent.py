@@ -122,7 +122,7 @@ def _has_record_intent(message: str) -> bool:
     if re.search(r"\d+\s*(克|g|G|斤|两|kg|KG|毫升|ml|ML|碗|份|个|只|条|块|杯|盘|勺)", message):
         return True
     # 确认/修改类动词
-    record_verbs = ["确认", "好的", "可以", "行", "修改", "删除", "去掉", "换成",
+    record_verbs = ["确认", "好的", "可以", "行", "修改", "删除", "删掉", "去掉", "换成",
                     "改成", "再加", "替换", "追加", "移除", "更新", "保存", "记录一下", "记一下"]
     return any(v in message for v in record_verbs)
 
