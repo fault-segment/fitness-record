@@ -1,14 +1,10 @@
 // utils/api.ts
 import { getToken, setToken, setUserId, clearAuth } from './storage'
 
-// 开发环境自动适配地址：模拟器用 localhost，真机预览用局域网 IP
+// 生产环境走线上服务器，本地开发可切回 localhost
 function getBaseUrl(): string {
-  const sys = wx.getSystemInfoSync()
-  if (sys.platform === 'devtools') {
-    return 'http://localhost:8000'
-  }
-  // 真机走局域网 IP（手机和电脑需连同一 WiFi）
-  return 'http://192.168.31.52:8000'
+  // return 'http://localhost:8000'  // 本地开发
+  return 'https://dietrecord.top'   // 线上服务器
 }
 const BASE_URL = getBaseUrl()
 
@@ -107,6 +103,21 @@ export function doLogin(): Promise<void> {
   })
 
   return loginPromise
+}
+
+// ---- 今日汇总 ----
+
+export interface TodaySummary {
+  date: string
+  kcal: number
+  protein: number
+  carbs: number
+  fat: number
+  food_count: number
+}
+
+export function fetchTodaySummary(): Promise<TodaySummary> {
+  return request<TodaySummary>('/api/today-summary', { method: 'GET', auth: true })
 }
 
 // ---- SSE 消息类型 ----
