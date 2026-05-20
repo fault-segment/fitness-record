@@ -4,7 +4,7 @@ import { getToken, setToken, setUserId, clearAuth } from './storage'
 // 生产环境走线上服务器，本地开发可切回 localhost
 function getBaseUrl(): string {
   // return 'http://localhost:8000'  // 本地开发
-  return 'https://dietrecord.top'   // 线上服务器
+  return 'https://www.dietrecord.top'   // 线上服务器
 }
 const BASE_URL = getBaseUrl()
 

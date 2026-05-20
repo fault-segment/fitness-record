@@ -234,7 +234,7 @@ Page({
   },
 
   toggleVoiceMode() {
-    this.setData({ voiceMode: !this.data.voiceMode })
+    wx.showToast({ title: '语音功能开发中，敬请期待～', icon: 'none', duration: 2000 })
   },
 
   // ── 语音模式 tap 切换 ──
@@ -244,31 +244,7 @@ Page({
   _aborting: false,
 
   onVoiceTap() {
-    const sys = wx.getSystemInfoSync()
-
-    // 开发者工具降级：弹文字输入框
-    if (sys.platform === 'devtools') {
-      wx.showModal({
-        title: '语音测试',
-        content: '开发者工具不支持真实录音，输入文字模拟语音输入：',
-        editable: true,
-        placeholderText: '比如：我今天中午吃了米饭',
-        success: (res) => {
-          if (res.confirm && res.content && res.content.trim()) {
-            this.setData({ inputValue: res.content.trim() })
-            this.setData({ voiceMode: false })
-            this.sendText()
-          }
-        },
-      })
-      return
-    }
-
-    if (this.data.isRecording) {
-      this._stopRecording()
-    } else {
-      this._startRecording()
-    }
+    wx.showToast({ title: '语音功能开发中，敬请期待～', icon: 'none', duration: 2000 })
   },
 
   _startRecording() {
