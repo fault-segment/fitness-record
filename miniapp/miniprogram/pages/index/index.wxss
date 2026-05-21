@@ -12,7 +12,7 @@
 }
 
 .chat-inner {
-  padding: 12rpx 18rpx 12rpx 24rpx;
+  padding: 12rpx 12rpx 12rpx 24rpx;
 }
 
 /* 今日摄入顶部栏 */
