@@ -64,20 +64,14 @@ Page({
     } catch (_) {
       // 旧版本不支持 getAccountInfoSync，默认显示调试栏
     }
-    this.fetchTodaySummary((summary) => {
-      if (summary.food_count > 0) {
-        this._todayCardPushed = true
-        return
-      }
-      // 无今日记录，显示欢迎语
-      const app = getApp<IAppOption>()
-      if (app.globalData.isNewUser) {
-        this.addMsg('agent', 'text', GREETING, { contentHtml: renderMarkdown(GREETING) })
-      } else {
-        const welcomeBack = '欢迎回来！今天还没记录呢，吃了什么？'
-        this.addMsg('agent', 'text', welcomeBack, { contentHtml: renderMarkdown(welcomeBack) })
-      }
-    })
+    const app = getApp<IAppOption>()
+    if (app.globalData.isNewUser) {
+      this.addMsg('agent', 'text', GREETING, { contentHtml: renderMarkdown(GREETING) })
+    } else {
+      const welcomeBack = '欢迎回来！看看今天的饮食情况～'
+      this.addMsg('agent', 'text', welcomeBack, { contentHtml: renderMarkdown(welcomeBack) })
+    }
+    this.fetchTodaySummary()
   },
 
   onShow() {
