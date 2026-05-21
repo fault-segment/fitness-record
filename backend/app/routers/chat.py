@@ -53,15 +53,29 @@ async def today_summary(user_id: int = Depends(get_user_id)):
         total_carbs = 0.0
         total_fat = 0.0
         food_count = 0
+        meals: list[dict] = []
 
         for rec in records:
             await session.refresh(rec, ["items"])
+            meal_foods = []
+            meal_kcal = 0
             for item in rec.items:
+                food_count += 1
                 total_kcal += item.kcal
                 total_protein += float(item.protein_g)
                 total_carbs += float(item.carbs_g)
                 total_fat += float(item.fat_g)
-                food_count += 1
+                meal_kcal += item.kcal
+                meal_foods.append({
+                    "name": item.food_name,
+                    "amount": f"{item.amount_g}g",
+                    "kcal": item.kcal,
+                })
+            meals.append({
+                "meal_type": rec.meal_type,
+                "kcal": meal_kcal,
+                "foods": meal_foods,
+            })
 
         return {
             "date": today,
@@ -70,4 +84,5 @@ async def today_summary(user_id: int = Depends(get_user_id)):
             "carbs": round(total_carbs),
             "fat": round(total_fat),
             "food_count": food_count,
+            "meals": meals,
         }

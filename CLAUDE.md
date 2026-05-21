@@ -150,7 +150,44 @@ User: "吃了米饭红烧肉"
 
 `app/llm.py` provides `get_llm()` factory, switching on `LLM_PROVIDER` env var:
 - `"openai"` → `ChatOpenAI` (any OpenAI-compatible endpoint)
-- `"anthropic"` → `ChatAnthropic` (MiniMax M2.7 via `api.minimaxi.com/anthropic`)
+- `"anthropic"` → `ChatAnthropic` (DeepSeek v4-flash via `api.deepseek.com/anthropic`)
+
+## Intent Fast Routing
+
+`app/agent/intent.py` provides `classify_intent()` that short-circuits the LLM ReAct loop for deterministic queries. Currently only two routes:
+
+- `query_summary` — "今天吃了什么""看看汇总" → directly calls `get_daily_summary` → emits summary card
+- `query_history` — "最近一周""历史记录" → directly calls `query_history` → emits text
+
+`search_food` and `refuse` were removed from fast routing due to regex over-matching (e.g., "兰州牛肉拉面热量这么低吗" was incorrectly routed to food search). When adding new fast routes, always include a negative filter (`_has_record_intent`) to prevent mutation intents from being misrouted.
+
+## WeChat Miniapp Quirks
+
+- **Skyline rendering**: scroll-view padding doesn't work properly with Skyline enabled. Always wrap scroll-view content in a `<view class="chat-inner">` and put padding on the wrapper.
+- **wx:else restriction**: `wx:else` must follow a real element with `wx:if`, NOT a `<block>` (virtual node). Use separate `wx:if` conditions instead.
+- **Share images**: must be within `miniprogramRoot` (i.e., `miniapp/miniprogram/`), under 128KB, recommended 5:4 ratio.
+- **Dev vs Production**: use `wx.getAccountInfoSync().miniProgram.envVersion` to check `'develop'` / `'trial'` / `'release'`.
+
+## Frontend SSE Conventions
+
+- **One bubble per text event**: Each SSE `text` event creates a new message bubble. The backend controls granularity — emit complete thoughts as single events, not token-by-token.
+- **done is authoritative**: The SSE `done` event is the definitive end-of-stream signal. HTTP callbacks are fallback only.
+- **Placeholder messages**: The "thinking..." message uses `isPlaceholder: true`. Status events update the placeholder. First real content (text/card) filters out all placeholders.
+
+## Deployment
+
+| Item | Detail |
+|------|--------|
+| Server | Alibaba Cloud 8.152.168.44, 2C2G, Alibaba Cloud Linux 3 |
+| SSH | `ssh root@8.152.168.44` |
+| Project path | `/opt/fitness-record/` |
+| Conda env | `/opt/miniconda/envs/asr/` (Python 3.10) |
+| Backend log | `/var/log/dietrecord.log` |
+| Nginx config | `/etc/nginx/conf.d/freeasr.conf` |
+| Static page | `/var/www/freeasr/` |
+| SSL certs | `/etc/nginx/ssl/` |
+| Whisper | **Disabled** to save memory (comment out in main.py lifespan + remove speech router) |
+| GitHub push | May need proxy: `git config --local http.proxy http://127.0.0.1:7890` |
 
 ## Documentation Conventions
 
@@ -165,6 +202,10 @@ User: "吃了米饭红烧肉"
 - **Machine budget**: Target deployment is 2-core 2GB. BGE-small chosen over large variant for this reason.
 - **TiDB Cloud**: MySQL-compatible Serverless tier. Connection via SSL with CA certificate. Serverless tier sleeps after ~5min idle, first request may fail — consider connection pool warmup or retry logic.
 - **V2 scope documented only**: Share cards, friend pairing, invite rewards are in the design doc but NOT implemented.
+- **API backward compatibility**: When extending an existing endpoint, keep all existing fields. Add new fields alongside, never remove or rename.
+- **Git repo root**: All `git` commands must run from `/Users/segment/Project/fitness-record/`. The `backend/` subdirectory is NOT the repo root.
+- **Server Python**: Use full path `/opt/miniconda/envs/asr/bin/python` in SSH commands. `source activate` doesn't work in non-interactive SSH.
+- **Fast route verb list**: Any new mutation verb (e.g., "删掉") must be added to `_has_record_intent()` in `intent.py` to prevent misrouting.
 
 ## Environment Variables (backend/.env)
 
