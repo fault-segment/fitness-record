@@ -1,10 +1,15 @@
 // utils/api.ts
 import { getToken, setToken, setUserId, clearAuth } from './storage'
 
-// 生产环境走线上服务器，本地开发可切回 localhost
+// 自动根据环境切换：开发版用 localhost，体验版和正式版用线上
 function getBaseUrl(): string {
-  // return 'http://localhost:8000'  // 本地开发
-  return 'https://www.dietrecord.top'   // 线上服务器
+  try {
+    const accountInfo = wx.getAccountInfoSync()
+    if (accountInfo.miniProgram.envVersion === 'develop') {
+      return 'http://localhost:8000'
+    }
+  } catch (_) { /* 旧版本，走线上 */ }
+  return 'https://www.dietrecord.top'
 }
 const BASE_URL = getBaseUrl()
 

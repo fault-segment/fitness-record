@@ -92,6 +92,7 @@ Page({
           kcal: m.kcal,
           foods: m.foods.map((f: any) => ({ name: f.name, amount: f.amount, kcal: f.kcal })),
         }))
+        console.log('[DEBUG] today-summary meals:', JSON.stringify(meals))
         this.addMsg('agent', 'summary', `${summary.date} 今日饮食`, {
           date: summary.date,
           foods,
@@ -183,7 +184,7 @@ Page({
           }
 
           case 'summary': {
-            this._debug(`summary: ${msg.date}, ${(msg.foods || []).length}种食物`)
+            this._debug(`summary: ${msg.date}, ${(msg.foods || []).length}种食物, meals=${(msg.meals || []).length}餐`)
             const msgs = [...this.data.messages]
             msgs.push({
               role: 'agent',
