@@ -27,6 +27,7 @@ Page({
     voiceText: '',
     debugLog: [] as string[],
     debugExpanded: false,
+    isDev: true,  // 非正式版显示调试栏
     todaySummary: { kcal: 0, protein: 0, carbs: 0, fat: 0, food_count: 0 } as TodaySummary,
   },
 
@@ -57,6 +58,12 @@ Page({
   },
 
   onLoad() {
+    try {
+      const accountInfo = wx.getAccountInfoSync()
+      this.setData({ isDev: accountInfo.miniProgram.envVersion !== 'release' })
+    } catch (_) {
+      // 旧版本不支持 getAccountInfoSync，默认显示调试栏
+    }
     const app = getApp<IAppOption>()
     const isNew = app.globalData.isNewUser
     if (isNew) {

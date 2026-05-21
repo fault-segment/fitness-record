@@ -1,7 +1,7 @@
 <!-- 饮食助手 — 纯对话界面 -->
 <view class="page">
   <!-- 调试面板 -->
-  <view wx:if="{{debugLog.length > 0}}" class="debug-panel {{debugExpanded ? '' : 'collapsed'}}" bindtap="toggleDebug">
+  <view wx:if="{{debugLog.length > 0 && isDev}}" class="debug-panel {{debugExpanded ? '' : 'collapsed'}}" bindtap="toggleDebug">
     <block wx:if="{{debugExpanded}}">
       <view wx:for="{{debugLog}}" wx:key="index" class="debug-line">{{item}}</view>
     </block>
