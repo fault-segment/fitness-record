@@ -138,6 +138,26 @@
   margin-top: 8rpx;
 }
 
+.meal-group {
+  margin-top: 14rpx;
+}
+.meal-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 8rpx 0 4rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  margin-bottom: 4rpx;
+}
+.meal-type {
+  font-size: 24rpx;
+  color: #07c160;
+  font-weight: 600;
+}
+.meal-kcal {
+  font-size: 22rpx;
+  color: #999;
+}
+
 .card-divider {
   height: 1rpx;
   background: #eee;

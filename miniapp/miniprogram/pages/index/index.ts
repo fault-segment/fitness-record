@@ -11,6 +11,7 @@ interface IMsg {
   totals?: SSETotals
   card_type?: string
   date?: string
+  meals?: { meal_type: string; kcal: number; foods: SSEFood[] }[]
   isPlaceholder?: boolean
 }
 
@@ -86,9 +87,15 @@ Page({
         const foods = summary.meals.flatMap((m: any) =>
           m.foods.map((f: any) => ({ name: f.name, amount: f.amount, kcal: f.kcal }))
         )
+        const meals = summary.meals.map((m: any) => ({
+          meal_type: m.meal_type,
+          kcal: m.kcal,
+          foods: m.foods.map((f: any) => ({ name: f.name, amount: f.amount, kcal: f.kcal })),
+        }))
         this.addMsg('agent', 'summary', `${summary.date} 今日饮食`, {
           date: summary.date,
           foods,
+          meals,
           totals: {
             kcal: summary.kcal,
             protein: summary.protein,

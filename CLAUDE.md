@@ -206,6 +206,7 @@ User: "吃了米饭红烧肉"
 - **Git repo root**: All `git` commands must run from `/Users/segment/Project/fitness-record/`. The `backend/` subdirectory is NOT the repo root.
 - **Server Python**: Use full path `/opt/miniconda/envs/asr/bin/python` in SSH commands. `source activate` doesn't work in non-interactive SSH.
 - **Fast route verb list**: Any new mutation verb (e.g., "删掉") must be added to `_has_record_intent()` in `intent.py` to prevent misrouting.
+- **Deployment workflow**: Never push to server directly after code changes. The correct flow is: (1) make changes locally, (2) start local backend + verify in WeChat DevTools, (3) only after user confirms success, commit + push to GitHub + deploy to server.
 
 ## Environment Variables (backend/.env)
 

@@ -62,11 +62,27 @@
           <view class="card-macros" wx:if="{{item.totals.protein}}">
             <text>蛋白质 {{item.totals.protein}}g | 碳水 {{item.totals.carbs}}g | 脂肪 {{item.totals.fat}}g</text>
           </view>
-          <view wx:if="{{item.foods.length > 0}}" class="card-divider"></view>
-          <view wx:for="{{item.foods}}" wx:for-item="food" wx:key="*this" class="card-row">
-            <text class="card-food">{{food.name}} <text class="card-amount">~{{food.amount}}</text></text>
-            <text class="card-kcal">{{food.kcal}} kcal</text>
-          </view>
+          <!-- 按餐次分组 -->
+          <block wx:if="{{item.meals && item.meals.length > 0}}">
+            <view wx:for="{{item.meals}}" wx:for-item="meal" wx:key="meal_type" class="meal-group">
+              <view class="meal-header">
+                <text class="meal-type">{{meal.meal_type}}</text>
+                <text class="meal-kcal">{{meal.kcal}} kcal</text>
+              </view>
+              <view wx:for="{{meal.foods}}" wx:for-item="food" wx:key="*this" class="card-row">
+                <text class="card-food">{{food.name}} <text class="card-amount">~{{food.amount}}</text></text>
+                <text class="card-kcal">{{food.kcal}} kcal</text>
+              </view>
+            </view>
+          </block>
+          <!-- 无 meals 数据时降级显示 flat foods -->
+          <block wx:elif="{{item.foods.length > 0}}">
+            <view class="card-divider"></view>
+            <view wx:for="{{item.foods}}" wx:for-item="food" wx:key="*this" class="card-row">
+              <text class="card-food">{{food.name}} <text class="card-amount">~{{food.amount}}</text></text>
+              <text class="card-kcal">{{food.kcal}} kcal</text>
+            </view>
+          </block>
         </view>
 
         <!-- 拒绝消息 — markdown 渲染 -->

@@ -1,6 +1,6 @@
 # 工作进度
 
-> 最后更新：2026-04-30
+> 最后更新：2026-05-21
 
 ## 已完成
 
@@ -12,7 +12,7 @@
 - [x] SQLAlchemy async 数据模型：User、FoodRecord、FoodItem
 - [x] JWT 认证：wx.login → openid → JWT → get_user_id 依赖注入
 - [x] LLM 抽象层（app/llm.py）：支持 openai / anthropic provider 切换
-- [x] MiniMax M2.7 接入（Anthropic 协议，端点 `api.minimaxi.com/anthropic`）
+- [x] DeepSeek v4-flash 接入（Anthropic 协议，端点 `api.deepseek.com/anthropic`）
 - [x] BGE-small-zh-v1.5 嵌入模型本地化（`data/bge-small-zh-v1.5/`，无需联网）
 
 ### RAG 食品知识库
@@ -57,6 +57,18 @@
 - [x] 错误/空响应兜底："网络出了点问题，请稍后再试～"
 - [x] SSE `done` 消息作为权威结束信号（HTTP 回调仅兜底，避免竞态）
 - [x] 前端调试日志：SSE 流生命周期事件跟踪
+- [x] 今日热量顶部栏：页面顶部固定显示今日摄入热量，打开自动拉取
+- [x] 对话气泡分条：每条 SSE text 事件独立一个气泡，后端控制粒度
+- [x] 调试栏收缩：默认折叠，展开查看，正式版自动隐藏（`isDev` 标志）
+- [x] 分享功能：转发好友 + 朋友圈，自定义分享图片
+
+### 线上部署
+
+- [x] 阿里云 2C2G 服务器部署：nginx + SSL + 反向代理（`/api/` → 后端）
+- [x] ICP 备案通过（苏ICP备2026026991号），备案号已挂网站底部
+- [x] GitHub 代码同步 + git pull 热更新
+- [x] Whisper 语音模块关闭省内存（469MB/1.8GB）
+- [x] 小程序已发布上线
 
 ### 测试
 
@@ -89,6 +101,7 @@
 - [ ] **LangGraph 真 interrupt 替代伪 interrupt**：确认卡片流程改为 graph 内 `interrupt()` + `Command(resume=...)`，消除两次独立请求带来的 abort 竞态
 - [ ] **tool_node 并行化**：同一轮多个 tool_calls 之间无依赖（如 5 个 search_food），改为 `asyncio.gather()` 并行执行，减少串行等待
 - [ ] **确认保存不经过 Agent**：用户点击确认后前端直接 `POST /api/records` 保存，跳过 LLM ReAct（当前每次确认浪费 3-5 秒）。是最频繁的操作，优化收益最大
+- [ ] **打开小程序恢复当天对话**：`onShow` 时加载当天的聊天记录，用户打开能看到之前的对话上下文。需要后端提供消息持久化和查询接口
 
 ## 环境配置
 
