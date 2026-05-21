@@ -23,7 +23,8 @@
     scroll-top="{{scrollTop}}"
     scroll-with-animation
   >
-    <block wx:for="{{messages}}" wx:key="index">
+    <view class="chat-inner">
+      <block wx:for="{{messages}}" wx:key="index">
       <!-- Agent 消息 -->
       <view wx:if="{{item.role === 'agent'}}" class="msg-bot">
         <!-- 普通文本 — markdown 渲染 -->
@@ -81,6 +82,7 @@
         </view>
       </view>
     </block>
+    </view>
   </scroll-view>
 
   <!-- 录音中提示条 -->
