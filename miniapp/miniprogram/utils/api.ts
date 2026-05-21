@@ -164,6 +164,7 @@ export interface SSESummary {
   title: string
   date: string
   foods: SSEFood[]
+  meals?: { meal_type: string; kcal: number; foods: SSEFood[] }[]
   totals: SSETotals
 }
 

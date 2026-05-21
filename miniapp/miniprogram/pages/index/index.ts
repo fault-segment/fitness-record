@@ -189,6 +189,7 @@ Page({
               role: 'agent',
               type: 'summary',
               foods: msg.foods,
+              meals: msg.meals,
               totals: msg.totals,
               date: msg.date,
               content: msg.title,

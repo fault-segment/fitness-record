@@ -97,20 +97,32 @@ async def get_daily_summary(user_id: int, date_str: str) -> str:
                     "totals": {},
                 }, ensure_ascii=False)
 
-            all_items: list[FoodItem] = []
+            total_kcal = 0
+            total_protein = 0.0
+            total_carbs = 0.0
+            total_fat = 0.0
+            all_foods: list[dict] = []
+            meals: list[dict] = []
+
             for rec in records:
                 await session.refresh(rec, ["items"])
-                all_items.extend(rec.items)
+                meal_foods = []
+                meal_kcal = 0
+                for item in rec.items:
+                    total_kcal += item.kcal
+                    total_protein += float(item.protein_g)
+                    total_carbs += float(item.carbs_g)
+                    total_fat += float(item.fat_g)
+                    meal_kcal += item.kcal
+                    food = {"name": item.food_name, "amount": f"{item.amount_g}g", "kcal": item.kcal}
+                    meal_foods.append(food)
+                    all_foods.append(food)
+                meals.append({
+                    "meal_type": rec.meal_type,
+                    "kcal": meal_kcal,
+                    "foods": meal_foods,
+                })
 
-            total_kcal = sum(i.kcal for i in all_items)
-            total_protein = sum(float(i.protein_g) for i in all_items)
-            total_carbs = sum(float(i.carbs_g) for i in all_items)
-            total_fat = sum(float(i.fat_g) for i in all_items)
-
-            foods_list = [
-                {"name": item.food_name, "amount": f"{item.amount_g}g", "kcal": item.kcal}
-                for item in all_items
-            ]
             totals = {
                 "kcal": total_kcal,
                 "protein": round(total_protein),
@@ -122,18 +134,19 @@ async def get_daily_summary(user_id: int, date_str: str) -> str:
                 f"{date_str} 摄入汇总",
                 f"热量: {total_kcal} kcal",
                 f"蛋白质: {total_protein:.0f}g | 碳水: {total_carbs:.0f}g | 脂肪: {total_fat:.0f}g",
-                "",
-                "食物列表:",
             ]
-            for item in all_items:
-                lines.append(f"- {item.food_name} | {item.amount_g}g | {item.kcal}kcal")
+            for meal in meals:
+                lines.append(f"\n{meal['meal_type']} ({meal['kcal']} kcal):")
+                for f in meal["foods"]:
+                    lines.append(f"- {f['name']} | {f['amount']} | {f['kcal']}kcal")
 
-            logger.debug("get_daily_summary: {kcal} kcal, {count} foods", kcal=total_kcal, count=len(all_items))
+            logger.debug("get_daily_summary: {kcal} kcal, {count} foods", kcal=total_kcal, count=len(all_foods))
             return json.dumps({
                 "_summary": True,
                 "title": f"{date_str} 摄入汇总",
                 "date": date_str,
-                "foods": foods_list,
+                "foods": all_foods,
+                "meals": meals,
                 "totals": totals,
                 "text": "\n".join(lines),
             }, ensure_ascii=False)

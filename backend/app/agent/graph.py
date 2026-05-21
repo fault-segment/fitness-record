@@ -136,6 +136,7 @@ async def run_agent_stream(user_id: int, user_message: str):
                                     title=data.get("title", ""),
                                     date=data.get("date", ""),
                                     foods=data.get("foods", []),
+                                    meals=data.get("meals", []),
                                     totals=data.get("totals", {}))
                 except json.JSONDecodeError:
                     yield _emit("text", content=str(result))
@@ -197,6 +198,7 @@ async def run_agent_stream(user_id: int, user_message: str):
                                     title=data.get("title", ""),
                                     date=data.get("date", ""),
                                     foods=data.get("foods", []),
+                                    meals=data.get("meals", []),
                                     totals=data.get("totals", {}))
                         _suppress_text = True
                 except json.JSONDecodeError:
