@@ -114,6 +114,15 @@ export interface TodaySummary {
   carbs: number
   fat: number
   food_count: number
+  meals: {
+    meal_type: string
+    kcal: number
+    foods: {
+      name: string
+      amount: string
+      kcal: number
+    }[]
+  }[]
 }
 
 export function fetchTodaySummary(): Promise<TodaySummary> {

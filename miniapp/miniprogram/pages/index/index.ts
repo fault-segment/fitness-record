@@ -64,24 +64,46 @@ Page({
     } catch (_) {
       // 旧版本不支持 getAccountInfoSync，默认显示调试栏
     }
-    const app = getApp<IAppOption>()
-    const isNew = app.globalData.isNewUser
-    if (isNew) {
-      this.addMsg('agent', 'text', GREETING, { contentHtml: renderMarkdown(GREETING) })
-    } else {
-      const welcomeBack = '欢迎回来！今天还没记录呢，吃了什么？'
-      this.addMsg('agent', 'text', welcomeBack, { contentHtml: renderMarkdown(welcomeBack) })
-    }
-    this.fetchTodaySummary()
+    this.fetchTodaySummary((summary) => {
+      if (summary.food_count > 0) {
+        this._todayCardPushed = true
+        return
+      }
+      // 无今日记录，显示欢迎语
+      const app = getApp<IAppOption>()
+      if (app.globalData.isNewUser) {
+        this.addMsg('agent', 'text', GREETING, { contentHtml: renderMarkdown(GREETING) })
+      } else {
+        const welcomeBack = '欢迎回来！今天还没记录呢，吃了什么？'
+        this.addMsg('agent', 'text', welcomeBack, { contentHtml: renderMarkdown(welcomeBack) })
+      }
+    })
   },
 
   onShow() {
     this.fetchTodaySummary()
   },
 
-  fetchTodaySummary() {
+  fetchTodaySummary(onDone?: (summary: TodaySummary) => void) {
     fetchTodaySummary().then((summary: TodaySummary) => {
       this.setData({ todaySummary: summary })
+      if (summary.food_count > 0 && !this._todayCardPushed) {
+        this._todayCardPushed = true
+        const foods = summary.meals.flatMap((m: any) =>
+          m.foods.map((f: any) => ({ name: f.name, amount: f.amount, kcal: f.kcal }))
+        )
+        this.addMsg('agent', 'summary', `${summary.date} 今日饮食`, {
+          date: summary.date,
+          foods,
+          totals: {
+            kcal: summary.kcal,
+            protein: summary.protein,
+            carbs: summary.carbs,
+            fat: summary.fat,
+          },
+        })
+      }
+      onDone && onDone(summary)
     }).catch(() => {
       // 静默失败，顶部栏显示为空
     })
@@ -257,6 +279,7 @@ Page({
   _recorder: null as any,
   _currentStream: null as any,
   _aborting: false,
+  _todayCardPushed: false,
 
   onVoiceTap() {
     wx.showToast({ title: '语音功能开发中，敬请期待～', icon: 'none', duration: 2000 })
