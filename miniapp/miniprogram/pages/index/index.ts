@@ -41,6 +41,21 @@ Page({
     this.setData({ debugExpanded: !this.data.debugExpanded })
   },
 
+  onShareAppMessage() {
+    return {
+      title: '饮食记录助手 — 轻松记录每日饮食',
+      path: '/pages/index/index',
+      imageUrl: '',  // 可放分享图片 5:4 比例，不填用默认截图
+    }
+  },
+
+  onShareTimeline() {
+    return {
+      title: '饮食记录助手 — 轻松记录每日饮食',
+      imageUrl: '',
+    }
+  },
+
   onLoad() {
     const app = getApp<IAppOption>()
     const isNew = app.globalData.isNewUser
