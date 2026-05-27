@@ -26,8 +26,9 @@ llm_with_tools = get_llm().bind_tools(ALL_TOOLS)
 def agent_node(state: AgentState) -> dict:
     """LLM 推理 + 工具选择"""
     messages = state["messages"]
-    if not messages or not isinstance(messages[0], SystemMessage):
-        messages = [SystemMessage(content=get_system_prompt())] + list(messages)
+    # 每次都刷新系统提示词，确保当前日期在最前面，避免 LLM 被对话历史中的日期锚定
+    messages = [msg for msg in messages if not isinstance(msg, SystemMessage)]
+    messages = [SystemMessage(content=get_system_prompt())] + messages
     resp = llm_with_tools.invoke(messages)
     if resp.tool_calls:
         logger.info(

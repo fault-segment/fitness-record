@@ -74,8 +74,8 @@ uvicorn app.main:app --reload
 
 # Test API manually
 curl http://localhost:8000/api/health
-# Generate JWT for testing:
-.venv/bin/python -c "from app.middleware import create_token; print(create_token(1))"
+# Generate JWT for testing (user_id=100000 专用于测试，避免干扰 user_id=1 的开发数据):
+.venv/bin/python -c "from app.middleware import create_token; print(create_token(100000))"
 # Test chat SSE:
 curl -s -N -X POST http://localhost:8000/api/chat \
   -H "Content-Type: application/json" \
