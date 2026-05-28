@@ -28,12 +28,27 @@ def agent_node(state: AgentState) -> dict:
     messages = state["messages"]
     # 每次都刷新系统提示词，确保当前日期在最前面，避免 LLM 被对话历史中的日期锚定
     messages = [msg for msg in messages if not isinstance(msg, SystemMessage)]
-    messages = [SystemMessage(content=get_system_prompt())] + messages
+    sys_prompt = get_system_prompt()
+    messages = [SystemMessage(content=sys_prompt)] + messages
+
+    # 诊断日志：打印系统日期 + 最近几条对话，便于排查日期错乱
+    date_line = [l for l in sys_prompt.split("\n") if "今天是" in l]
+    recent_msgs = []
+    for m in messages[-6:]:
+        if hasattr(m, "content") and isinstance(m.content, str):
+            preview = m.content[:80].replace("\n", " ")
+            recent_msgs.append(f"[{m.__class__.__name__}] {preview}")
+    logger.info(
+        "AGENT INPUT: sys_date={date} | history=[{msgs}]",
+        date=date_line[0] if date_line else "N/A",
+        msgs=" | ".join(recent_msgs[-6:]),
+    )
+
     resp = llm_with_tools.invoke(messages)
     if resp.tool_calls:
         logger.info(
-            "agent_node tool_calls: {tools}",
-            tools=[tc["name"] for tc in resp.tool_calls],
+            "AGENT OUTPUT tool_calls: {tools}",
+            tools=[f"{tc['name']}({json.dumps(tc['args'], ensure_ascii=False)})" for tc in resp.tool_calls],
         )
     return {"messages": [resp]}
 
@@ -48,6 +63,14 @@ async def tool_node(state: AgentState) -> dict:
         tool_name = tc["name"]
         tool_args = tc["args"]
         tool_args["user_id"] = state["user_id"]
+
+        # 关键诊断日志：打印所有工具调用的参数，排查日期错乱问题
+        logger.info(
+            "TOOL CALL: {tool}({args}) user_id={uid}",
+            tool=tool_name,
+            args=", ".join(f"{k}={v}" for k, v in tool_args.items() if k != "user_id"),
+            uid=state["user_id"],
+        )
 
         tool_map = {t.name: t for t in ALL_TOOLS}
         tool_fn = tool_map.get(tool_name)
@@ -114,6 +137,10 @@ async def run_agent_stream(user_id: int, user_message: str):
 
     # ———— 快速路由：关键词匹配直接调工具 ————
     intent, tool_name, tool_args = classify_intent(user_message)
+    logger.info(
+        "USER MSG: uid={uid} msg={msg:.100} intent={intent}",
+        uid=user_id, msg=user_message, intent=intent,
+    )
     if intent == "fast":
         logger.info("fast_route: tool={tool} msg={msg:.60}", tool=tool_name, msg=user_message)
         tool_args["user_id"] = user_id
@@ -150,8 +177,11 @@ async def run_agent_stream(user_id: int, user_message: str):
         return
 
     config = {"configurable": {"thread_id": str(user_id)}}
+    # 在用户消息中注入当前日期，防止 LLM 被对话历史中的"昨天/明天"锚定
+    from datetime import date as _date
+    today_hint = f"[系统时间: 今天是{_date.today().isoformat()}] "
     input_state = {
-        "messages": [HumanMessage(content=user_message)],
+        "messages": [HumanMessage(content=today_hint + user_message)],
         "user_id": user_id,
     }
 
